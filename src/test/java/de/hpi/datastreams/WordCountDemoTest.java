@@ -86,7 +86,7 @@ public class WordCountDemoTest {
         testDriver.pipeInput(records);
 
         final KeyValueStore<String, Long> countsKeyValueStore = testDriver.getKeyValueStore(STORE_NAME);
-        expectedWordCounts.forEach((key,value) -> {
+        expectedWordCounts.forEach((key, value) -> {
             assertEquals(value, countsKeyValueStore.get(key));
         });
     }
