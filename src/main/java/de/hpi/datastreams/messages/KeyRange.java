@@ -26,6 +26,11 @@ public class KeyRange implements JSONSerdeCompatible {
     }
 
     @Override
+    public String toString() {
+        return String.format("KeyRange(%d, %d)", start, end);
+    }
+
+    @Override
     public boolean equals(Object obj) {
         if (this == obj) {
             return true;
