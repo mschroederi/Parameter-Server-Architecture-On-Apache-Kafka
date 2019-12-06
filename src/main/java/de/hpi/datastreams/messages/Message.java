@@ -3,11 +3,14 @@ package de.hpi.datastreams.messages;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import de.hpi.datastreams.serialization.JSONSerdeCompatible;
+import jdk.nashorn.internal.runtime.options.Option;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 @NoArgsConstructor
 public class Message implements JSONSerdeCompatible {
@@ -25,13 +28,21 @@ public class Message implements JSONSerdeCompatible {
     @JsonProperty("keyValue")
     @Getter
     @Setter
-    List<KeyValue> keyValues;
+    Map<Integer, Float> keyValues;
 
     @JsonCreator
-    public Message(@JsonProperty("vectorClock") Integer vectorClock, @JsonProperty("keyRange") KeyRange keyRange, @JsonProperty("keyValue") List<KeyValue> keyValues) {
+    public Message(@JsonProperty("vectorClock") Integer vectorClock, @JsonProperty("keyRange") KeyRange keyRange, @JsonProperty("keyValue") Map<Integer, Float> keyValues) {
         this.vectorClock = vectorClock;
         this.keyRange = keyRange;
         this.keyValues = keyValues;
+    }
+
+    public Optional<Float> getValue(int key) {
+        if (!this.keyValues.containsKey(key)) {
+            return Optional.empty();
+        }
+
+        return Optional.of(this.keyValues.get(key));
     }
 
     @Override

@@ -17,6 +17,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 
 import static org.junit.Assert.assertNull;
 
@@ -30,7 +31,7 @@ public class MyTest {
     public void setup() {
         final StreamsBuilder builder = new StreamsBuilder();
         Consumer.createStream(builder);
-        testDriver = new TopologyTestDriver(builder.build(), Main.getStreamsConfig());
+        testDriver = new TopologyTestDriver(builder.build(), Main.getStreamsConfig()); // TODO
     }
 
     @After
@@ -44,7 +45,7 @@ public class MyTest {
 
     @Test
     public void testSimpleMessage() {
-        Message msg = new Message(0, new KeyRange(0, 0), new ArrayList<>());
+        Message msg = new Message(0, new KeyRange(0, 0), new HashMap<>());
         ConsumerRecord<byte[], byte[]> r = recordFactory.create(Consumer.INPUT_TOPIC, "", msg);
         testDriver.pipeInput(r);
 
