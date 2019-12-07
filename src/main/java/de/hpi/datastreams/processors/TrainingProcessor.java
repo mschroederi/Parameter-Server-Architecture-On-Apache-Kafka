@@ -33,10 +33,12 @@ public class TrainingProcessor extends AbstractProcessor<Long, Message> {
 
     @Override
     public void process(Long partitionKey, Message gradientMessage) {
+        /*
         IntStream.range(gradientMessage.getKeyRange().getStart(), gradientMessage.getKeyRange().getEnd()).forEach(key -> {
             Optional<Float> weight = gradientMessage.getValue(key);
             weight.ifPresent(aFloat -> weights.put(key, aFloat));
         });
+         */
     }
 
     static void createGradientStream(final StreamsBuilder builder) {

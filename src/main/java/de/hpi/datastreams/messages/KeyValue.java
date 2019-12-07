@@ -30,6 +30,14 @@ public class KeyValue implements JSONSerdeCompatible {
         return String.format("KeyValue(%d, %f)", key, value);
     }
 
+    public Integer key(){
+        return this.key;
+    }
+
+    public Float value(){
+        return this.value;
+    }
+
     @Override
     public boolean equals(Object obj) {
         if (this == obj) {
