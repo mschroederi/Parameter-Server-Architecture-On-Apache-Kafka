@@ -1,32 +1,35 @@
 package de.hpi.datastreams.producer;
 
-import de.hpi.datastreams.apps.SamplingApp;
+import de.hpi.datastreams.apps.App;
+import de.hpi.datastreams.messages.DataMessage;
 import de.hpi.datastreams.messages.KeyRange;
-import de.hpi.datastreams.messages.KeyValue;
-import de.hpi.datastreams.messages.Message;
+import javafx.util.Pair;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 public class CsvProducer {
 
-    Producer<Long, Message> producer;
-    String csvPath;
-    String topicName;
+    private Producer<Long, DataMessage> producer;
+    private String csvPath;
+    private String topicName;
 
-    public CsvProducer(String csvPath){
+    public CsvProducer(String csvPath) {
         this.csvPath = csvPath;
-        this.topicName = SamplingApp.INPUT_DATA;
-        this.producer = ProducerCreator.createProducer();
+        this.topicName = App.INPUT_DATA_TOPIC;
+        this.producer = ProducerBuilder.build("client-dataMessageProducer-" + UUID.randomUUID().toString());
     }
 
-    void runProducer() throws IOException {
+    public void runProducer() throws IOException {
         BufferedReader csvReader = new BufferedReader(new FileReader(this.csvPath));
         String row;
         int rowCount = 0;
@@ -39,38 +42,31 @@ public class CsvProducer {
             // Convert csv row into message
             Map<Integer, Float> mappedData = IntStream
                     .range(0, length)
-                    .mapToObj(i -> new KeyValue(i, Float.valueOf(data[i])))
-                    .collect(Collectors.toMap(KeyValue::key, KeyValue::value));
-                    //.collect(Collectors.toMap(KeyValue::getKey, KeyValue::getValue));
+                    .mapToObj(i -> new Pair<>(i, Float.valueOf(data[i])))
+                    .collect(Collectors.toMap(Pair::getKey, Pair::getValue));
 
-            Message msg = new Message(rowCount, new KeyRange(0, length-1), mappedData);
-            ProducerRecord<Long, Message> record = new ProducerRecord<Long, Message>(this.topicName, msg);
+            DataMessage dataMessage = new DataMessage(rowCount, new KeyRange(0, length - 1), mappedData);
+            ProducerRecord<Long, DataMessage> record = new ProducerRecord<>(this.topicName, 0L, dataMessage);
 
             // Send message into queue
             try {
                 RecordMetadata metadata = producer.send(record).get();
                 System.out.println("Record sent with key " + rowCount + " to partition " + metadata.partition()
                         + " with offset " + metadata.offset());
-            }
-            catch (ExecutionException | InterruptedException e) {
+            } catch (ExecutionException | InterruptedException e) {
                 System.out.println("Error in sending record");
                 System.out.println(e);
             }
 
             rowCount++;
+
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
         csvReader.close();
     }
 }
 
-class CsvProducerRunner{
-    public static void main(String[] args) {
-        String pathToCSV = new File("./mockData//sample_input_data.csv").getAbsolutePath();
-        CsvProducer producer = new CsvProducer(pathToCSV);
-        try {
-            producer.runProducer();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-}

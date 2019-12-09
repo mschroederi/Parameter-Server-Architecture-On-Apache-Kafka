@@ -25,9 +25,13 @@ public class KeyRange implements JSONSerdeCompatible {
         this.end = end;
     }
 
+    public boolean contains(Integer key) {
+        return this.start <= key && key <= this.end;
+    }
+
     @Override
     public String toString() {
-        return String.format("KeyRange(%d, %d)", start, end);
+        return String.format("KeyRange(%d, %d)", this.start, this.end);
     }
 
     @Override
@@ -38,7 +42,7 @@ public class KeyRange implements JSONSerdeCompatible {
             return false;
         } else if (obj instanceof KeyRange) {
             KeyRange msg = (KeyRange) obj;
-            return this.start.equals(msg.start) && this.end.equals(msg.end);
+            return this.start.equals(msg.getStart()) && this.end.equals(msg.getEnd());
         }
         return false;
     }
