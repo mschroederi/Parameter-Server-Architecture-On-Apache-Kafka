@@ -12,6 +12,9 @@ application {
 
 repositories {
     mavenCentral()
+    maven {
+        url "http://packages.confluent.io/maven/"
+    }
 }
 
 dependencies {
@@ -23,6 +26,8 @@ dependencies {
     annotationProcessor 'org.projectlombok:lombok:1.18.10'
 
     compile "com.fasterxml.jackson.module:jackson-module-parameter-names:2.10.1"
+    compile "io.confluent:monitoring-interceptors:5.3.1"
+
     testCompile "org.apache.kafka:kafka-streams-test-utils:2.3.1"
     testCompile "junit:junit:4.12"
 }

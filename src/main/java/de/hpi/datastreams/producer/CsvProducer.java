@@ -46,7 +46,8 @@ public class CsvProducer {
                     .collect(Collectors.toMap(Pair::getKey, Pair::getValue));
 
             DataMessage dataMessage = new DataMessage(rowCount, new KeyRange(0, length - 1), mappedData);
-            ProducerRecord<Long, DataMessage> record = new ProducerRecord<>(this.topicName, 0L, dataMessage);
+            // TODO: replace (rowCount % 4) with automatic partitioning
+            ProducerRecord<Long, DataMessage> record = new ProducerRecord<>(this.topicName, (long) (rowCount % 4), dataMessage);
 
             // Send message into queue
             try {
@@ -60,6 +61,7 @@ public class CsvProducer {
 
             rowCount++;
 
+            // TODO: remove
             try {
                 Thread.sleep(1000);
             } catch (InterruptedException e) {

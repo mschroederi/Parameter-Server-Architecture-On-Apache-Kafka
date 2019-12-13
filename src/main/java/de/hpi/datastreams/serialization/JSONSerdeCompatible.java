@@ -15,6 +15,7 @@ import de.hpi.datastreams.messages.*;
         @JsonSubTypes.Type(value = WeightsMessage.class, name = "wMsg"),
         @JsonSubTypes.Type(value = GradientMessage.class, name = "gMsg"),
         @JsonSubTypes.Type(value = KeyRange.class, name = "keyRange"),
+        @JsonSubTypes.Type(value = MyArrayList.class, name = "myArrayList"),
 })
 public
 interface JSONSerdeCompatible {

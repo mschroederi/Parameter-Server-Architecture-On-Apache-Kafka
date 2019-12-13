@@ -2,6 +2,7 @@ package de.hpi.datastreams.apps;
 
 import de.hpi.datastreams.serialization.JSONSerde;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.KafkaStreams;
 import org.apache.kafka.streams.StreamsConfig;
@@ -47,6 +48,13 @@ public abstract class BaseKafkaApp implements Callable<Void> {
         props.put(StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.Long().getClass().getName());
         props.put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, JSONSerde.class.getName());
         props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+
+        // Enable tracking message flow in Confluent Control Center
+        props.put(StreamsConfig.PRODUCER_PREFIX + ProducerConfig.INTERCEPTOR_CLASSES_CONFIG,
+                "io.confluent.monitoring.clients.interceptor.MonitoringProducerInterceptor");
+        props.put(
+                StreamsConfig.CONSUMER_PREFIX + ConsumerConfig.INTERCEPTOR_CLASSES_CONFIG,
+                "io.confluent.monitoring.clients.interceptor.MonitoringConsumerInterceptor");
 
         return props;
     }

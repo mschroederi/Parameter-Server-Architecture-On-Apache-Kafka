@@ -25,9 +25,12 @@ class AppRunner {
             server.call();
 
             Thread.sleep(1000);
-            GradientMessage gradientMessage = new GradientMessage(START_VC, new KeyRange(0, 1), new HashMap<>());
             Producer<Long, GradientMessage> gradientMessageProducer = ProducerBuilder.build("client-initial-gradientMessageProducer");
-            gradientMessageProducer.send(new ProducerRecord<>(App.GRADIENTS_TOPIC, 0L, gradientMessage));
+
+            for (Long partition = 0L; partition < 4L; partition++) {
+                GradientMessage gradientMessage = new GradientMessage(START_VC, new KeyRange(0, 1), new HashMap<>(), partition);
+                gradientMessageProducer.send(new ProducerRecord<>(App.GRADIENTS_TOPIC, partition, gradientMessage));
+            }
 
             WeightsMessage weightsMessage = new WeightsMessage(START_VC, new KeyRange(0, 1), new HashMap<>());
             Producer<Long, WeightsMessage> weightsMessageProducer = ProducerBuilder.build("client-initial-weightsMessageProducer");

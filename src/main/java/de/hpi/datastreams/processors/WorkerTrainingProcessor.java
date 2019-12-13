@@ -1,20 +1,19 @@
 package de.hpi.datastreams.processors;
 
 import de.hpi.datastreams.apps.App;
-import de.hpi.datastreams.messages.DataMessage;
 import de.hpi.datastreams.messages.GradientMessage;
 import de.hpi.datastreams.messages.KeyRange;
+import de.hpi.datastreams.messages.MyArrayList;
 import de.hpi.datastreams.messages.WeightsMessage;
 import de.hpi.datastreams.producer.ProducerBuilder;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.streams.processor.AbstractProcessor;
 import org.apache.kafka.streams.processor.ProcessorContext;
+import org.apache.kafka.streams.state.KeyValueIterator;
 import org.apache.kafka.streams.state.KeyValueStore;
 
-import java.util.HashMap;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.IntStream;
 
 import static de.hpi.datastreams.apps.App.GRADIENTS_TOPIC;
@@ -29,15 +28,18 @@ public class WorkerTrainingProcessor extends AbstractProcessor<Long, WeightsMess
 
     private HashMap<Integer, Float> weights;
     private Producer<Long, GradientMessage> gradientMessageProducer;
-    KeyValueStore<Long, DataMessage> data;
+    KeyValueStore<Long, MyArrayList<Map<Integer, Float>>> data;
 
     @Override
+    @SuppressWarnings(value = "unchecked")
     public void init(ProcessorContext context) {
         super.init(context);
         this.weights = new HashMap<>();
-        this.gradientMessageProducer = ProducerBuilder.build("client-gradientMessageProducer-" + UUID.randomUUID().toString());
+        this.gradientMessageProducer = ProducerBuilder.build(
+                "client-gradientMessageProducer-" + UUID.randomUUID().toString());
 
-        this.data = (KeyValueStore<Long, DataMessage>) context.getStateStore(App.INPUT_DATA_BUFFER);
+        this.data = (KeyValueStore<Long, MyArrayList<Map<Integer, Float>>>)
+                context.getStateStore(App.INPUT_DATA_BUFFER);
     }
 
     /**
@@ -48,26 +50,63 @@ public class WorkerTrainingProcessor extends AbstractProcessor<Long, WeightsMess
      */
     @Override
     public void process(Long partitionKey, WeightsMessage message) {
-        System.out.println("TrainingProcessor - received: " + message.toString() + " - data count: " + this.data.approximateNumEntries());
 
+        // Do not handle initial message
         if (message.getVectorClock().equals(START_VC)) {
             return;
         }
 
+        // TODO: remove
         try {
             Thread.sleep(1000);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
 
+        // Extract weights from message and store in local HashMap
         IntStream.range(message.getKeyRangeStart(), message.getKeyRangeEnd()).forEach(key -> {
             Optional<Float> weight = message.getValue(key);
             weight.ifPresent(aFloat -> weights.put(key, aFloat));
         });
 
-        // TODO: start training iteration - sequential consistency model
-        GradientMessage gradients = new GradientMessage(message.getVectorClock(), new KeyRange(0, 1), new HashMap<>());
+        KeyValueIterator<Long, MyArrayList<Map<Integer, Float>>> iterator =
+                this.data.range(partitionKey, partitionKey);
 
+        // No need to run ML model if no data is available
+        if (!iterator.hasNext()) {
+            System.out.println(String.format(
+                    "TrainingProcessor (partition %d) - received WeightsMessage - DataCount: %d",
+                    Math.toIntExact(partitionKey), 0));
+
+            // TODO: think of aborting here due to the lack of training data,
+            //  but keep in mind the possible influence on the loop
+            //  between ServerProcessor and WorkerTrainingProcessor
+            // return;
+        } else {
+            int numEntries = iterator.next().value.size();
+            System.out.println(String.format(
+                    "TrainingProcessor (partition %d) - received WeightsMessage - DataCount: %d",
+                    Math.toIntExact(partitionKey), numEntries));
+        }
+
+        // TODO: start training iteration
+        GradientMessage gradients = new GradientMessage(message.getVectorClock(), this.getKeyRange(), new HashMap<>(), partitionKey);
+
+        // Write calculated gradients to GRADIENTS_TOPIC stream
+        System.out.println(String.format(
+                "TrainingProcessor (partition %d) - send GradientMessage %s",
+                Math.toIntExact(partitionKey), gradients.toString()));
         this.gradientMessageProducer.send(new ProducerRecord<>(GRADIENTS_TOPIC, 0L, gradients));
+    }
+
+    /**
+     * Get overall keyRange from the stored weights
+     *
+     * @return KeyRange
+     */
+    private KeyRange getKeyRange() {
+        Integer smallestKey = Collections.min(this.weights.keySet());
+        Integer largestKey = Collections.max(this.weights.keySet());
+        return new KeyRange(smallestKey, largestKey);
     }
 }

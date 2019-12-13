@@ -41,28 +41,27 @@ public class ServerProcessor extends AbstractProcessor<Long, GradientMessage> {
      */
     @Override
     public void process(Long partitionKey, GradientMessage message) {
-        System.out.println("ServerProcessor received: " + message.toString());
+        System.out.println(String.format(
+                "ServerProcessor (partition %d) received: %s",
+                Math.toIntExact(partitionKey), message.toString()));
 
+        // Initialize ML model when receiving initial message
         if (message.getVectorClock().equals(START_VC)) {
             this.initializeModel();
         }
 
-        try {
-            Thread.sleep(1000);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-
+        // Extract gradients from message and update locally stored weights
         IntStream.range(message.getKeyRangeStart(), message.getKeyRangeEnd()).forEach(key -> {
             Optional<Float> gradient = message.getValue(key);
             gradient.ifPresent(partialGradient -> updateWeight(key, partialGradient));
         });
 
-        // TODO: start training iteration - sequential consistency model
+        // Start new training iteration on workers by sending update of weights
+        // TODO: Currently only eventual consistency model supported
         KeyRange keyRange = this.getKeyRange();
         WeightsMessage weights = new WeightsMessage(message.getVectorClock() + 1, keyRange, this.getWeights(keyRange));
 
-        this.weightsMessageProducer.send(new ProducerRecord<>(WEIGHTS_TOPIC, 0L, weights));
+        this.weightsMessageProducer.send(new ProducerRecord<>(WEIGHTS_TOPIC, message.getPartitionKey(), weights));
     }
 
     private void initializeModel() {
@@ -77,6 +76,10 @@ public class ServerProcessor extends AbstractProcessor<Long, GradientMessage> {
      * @return KeyRange
      */
     private KeyRange getKeyRange() {
+        if (this.weights.keySet().isEmpty()) {
+            return new KeyRange(0, 0);
+        }
+
         Integer smallestKey = Collections.min(this.weights.keySet());
         Integer largestKey = Collections.max(this.weights.keySet());
         return new KeyRange(smallestKey, largestKey);
