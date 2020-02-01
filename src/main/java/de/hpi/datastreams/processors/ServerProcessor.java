@@ -1,20 +1,28 @@
 package de.hpi.datastreams.processors;
 
+import de.hpi.datastreams.apps.App;
 import de.hpi.datastreams.messages.GradientMessage;
 import de.hpi.datastreams.messages.KeyRange;
+import de.hpi.datastreams.messages.SerializableHashMap;
 import de.hpi.datastreams.messages.WeightsMessage;
+import de.hpi.datastreams.ml.LogisticRegressionTaskSpark;
 import de.hpi.datastreams.producer.ProducerBuilder;
+import org.apache.commons.lang.math.LongRange;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.streams.processor.AbstractProcessor;
+import org.apache.kafka.streams.processor.Cancellable;
 import org.apache.kafka.streams.processor.ProcessorContext;
+import org.apache.kafka.streams.processor.PunctuationType;
+import org.apache.kafka.streams.state.KeyValueStore;
+import scala.Tuple2;
 
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.LongStream;
 
-import static de.hpi.datastreams.apps.App.START_VC;
-import static de.hpi.datastreams.apps.App.WEIGHTS_TOPIC;
+import static de.hpi.datastreams.apps.App.*;
 
 /**
  * Apache Kafka processor responsible for synchronizing the TrainingProcessors.
@@ -22,15 +30,103 @@ import static de.hpi.datastreams.apps.App.WEIGHTS_TOPIC;
  */
 public class ServerProcessor extends AbstractProcessor<Long, GradientMessage> {
 
-    private HashMap<Integer, Float> weights;
-    private Float learningRate = 1e-2f;
+    private ProcessorContext context;
+
+    //    private KeyValueStore<Long, SerializableHashMap> weights;
+    private SerializableHashMap weights;
+    private final Float learningRate = 1f / numWorkers;
     private Producer<Long, WeightsMessage> weightsMessageProducer;
+
+    private MessageTracker messageTracker = new MessageTracker(App.numWorkers);
+
+    private Cancellable trainingLoopStarter;
+
+    public static final int MAX_DELAY_INFINITY = -1;
+    private final Integer maxVectorClockDelay = 1;
 
     @Override
     public void init(ProcessorContext context) {
         super.init(context);
-        this.weights = new HashMap<>();
+        this.context = context;
+
+//        this.weights = (KeyValueStore<Long, SerializableHashMap>) context.getStateStore(App.WEIGHTS_STORE);
+        this.weights = new SerializableHashMap();
         this.weightsMessageProducer = ProducerBuilder.build("client-weightsMessageProducer-" + UUID.randomUUID().toString());
+
+        try {
+            this.trainingLoopStarter = this.context.schedule(1000,
+                    PunctuationType.WALL_CLOCK_TIME, this::startTrainingLoop);
+        } catch (IllegalArgumentException ignored) {
+            System.out.println(ignored.toString());
+        }
+    }
+
+    /**
+     * Starts the training loop between the {@link ServerProcessor}
+     * and {@link WorkerTrainingProcessor}s by initializing the ML model's weights
+     * and sending them to all workers
+     *
+     * @param timestamp
+     */
+    private void startTrainingLoop(long timestamp) {
+        // Initialize the ML model's weights
+        this.setInitialWeights();
+
+        WeightsMessage weightsMessage = new WeightsMessage(0, this.getKeyRange(), this.getWeights());
+        LongStream.range(0, WEIGHTS_TOPIC_NUM_PARTITIONS).forEach(partitionKey -> {
+            this.weightsMessageProducer.send(new ProducerRecord<>(WEIGHTS_TOPIC, partitionKey, weightsMessage));
+        });
+
+        this.context.commit();
+        // Just execute the training loop starter once
+        this.trainingLoopStarter.cancel();
+    }
+
+    /**
+     * Decides based on the chosen consistency model which workers to answer.
+     *
+     * @param receivedVC vector clock of the message received in {@link ServerProcessor#process(Long, GradientMessage)}
+     * @return Set of partition keys
+     */
+    private HashSet<Tuple2<Long, Integer>> workersToRespondTo(Integer receivedVC, Long receivedPartitionKey) {
+        HashSet<Tuple2<Long, Integer>> workersToAnswers = new HashSet<>();
+
+        /*
+         * Directly answer with message containing weights
+         * if the user chose the eventual consistency model.
+         */
+        if (this.maxVectorClockDelay == MAX_DELAY_INFINITY) {
+            workersToAnswers.add(new Tuple2<>(receivedPartitionKey, receivedVC + 1));
+            this.messageTracker.sentMessage(receivedPartitionKey, receivedVC + 1);
+        }
+        /*
+         * Send new batch of messages containing weights
+         * if the user chose the sequential consistency model
+         *  and we already received all messages containing the recently received vector clock.
+         */
+        else if (this.maxVectorClockDelay == 0
+                && this.messageTracker.hasReceivedAllMessages(receivedVC)) {
+            List<Tuple2<Long, Integer>> allPartitionKeys =
+                    Arrays.stream(new LongRange(0L, App.numWorkers - 1).toArray())
+                            .boxed()
+                            .map(partitionKey -> new Tuple2<>(partitionKey, receivedVC + 1))
+                            .collect(Collectors.toList());
+            workersToAnswers.addAll(allPartitionKeys);
+            this.messageTracker.sentAllMessages(receivedVC + 1);
+        }
+        /*
+         * If the user chose the bounded delay consistency model,
+         * send back weights to the those workers whose current vector clock is
+         * less than `maxVectorClockDelay` ahead of minimum outstanding vector clock
+         */
+        else if (this.maxVectorClockDelay > 0) {
+
+            ArrayList<Tuple2<Long, Integer>> sendableMessages =
+                    this.messageTracker.getAllSendableMessages(receivedVC, this.maxVectorClockDelay);
+            workersToAnswers.addAll(sendableMessages);
+        }
+
+        return workersToAnswers;
     }
 
     /**
@@ -41,14 +137,8 @@ public class ServerProcessor extends AbstractProcessor<Long, GradientMessage> {
      */
     @Override
     public void process(Long partitionKey, GradientMessage message) {
-        System.out.println(String.format(
-                "ServerProcessor (partition %d) received: %s",
-                Math.toIntExact(partitionKey), message.toString()));
-
-        // Initialize ML model when receiving initial message
-        if (message.getVectorClock().equals(START_VC)) {
-            this.initializeModel();
-        }
+        // Register message in vector clock tracker
+        this.messageTracker.receivedMessage(message.getPartitionKey(), message.getVectorClock());
 
         // Extract gradients from message and update locally stored weights
         IntStream.range(message.getKeyRangeStart(), message.getKeyRangeEnd()).forEach(key -> {
@@ -56,18 +146,42 @@ public class ServerProcessor extends AbstractProcessor<Long, GradientMessage> {
             gradient.ifPresent(partialGradient -> updateWeight(key, partialGradient));
         });
 
-        // Start new training iteration on workers by sending update of weights
-        // TODO: Currently only eventual consistency model supported
-        KeyRange keyRange = this.getKeyRange();
-        WeightsMessage weights = new WeightsMessage(message.getVectorClock() + 1, keyRange, this.getWeights(keyRange));
+        // Log weights every 10 vector clocks
+        if (message.getVectorClock() % 10 == 0 && message.getPartitionKey() == 0) {
+            // print the weights each 10 iterations
+//            System.out.println("Weights in iteration " + message.getVectorClock() + ":");
+//            this.weights.get(0L).forEach((key, value) -> System.out.println(key + " " + value));
+        }
 
-        this.weightsMessageProducer.send(new ProducerRecord<>(WEIGHTS_TOPIC, message.getPartitionKey(), weights));
+        /*
+         * Start new training iteration on workers by sending update of weights.
+         * The Set of workers that will receive a weight update is based on
+         * the chosen consistency model and the maximum allowed vector clock delay
+         */
+        this.workersToRespondTo(message.getVectorClock(), message.getPartitionKey())
+                .forEach((tuple) -> {
+                    Long workerPartitionKey = tuple._1;
+                    Integer vectorClock = tuple._2;
+                    WeightsMessage weights = new WeightsMessage(vectorClock,
+                            this.getKeyRange(), this.getWeights());
+                    this.weightsMessageProducer.send(
+                            new ProducerRecord<>(WEIGHTS_TOPIC, workerPartitionKey, weights));
+
+                    this.messageTracker.sentMessage(tuple._1, tuple._2);
+                });
     }
 
-    private void initializeModel() {
-        // TODO: initialize weights
-        this.weights.put(0, 0f);
-        this.weights.put(1, 0f);
+    /**
+     * Generates and stores the ML model's initial weights.
+     */
+    private void setInitialWeights() {
+        LogisticRegressionTaskSpark lgTask = new LogisticRegressionTaskSpark();
+        lgTask.initialize(true);
+
+        this.weights = lgTask.getWeights();
+
+        // All weights are stored on node 0
+//        this.weights.put(0L, lgTask.getWeights());
     }
 
     /**
@@ -76,26 +190,30 @@ public class ServerProcessor extends AbstractProcessor<Long, GradientMessage> {
      * @return KeyRange
      */
     private KeyRange getKeyRange() {
-        if (this.weights.keySet().isEmpty()) {
-            return new KeyRange(0, 0);
+        Integer smallestKey = 0;
+        Integer largestKey = 0;
+
+//        if (!this.weights.get(0L).isEmpty()) {
+//            HashMap<Integer, Float> weightsMap = this.weights.get(0L);
+//            smallestKey = Collections.min(weightsMap.keySet());
+//            largestKey = Collections.max(weightsMap.keySet());
+//        }
+
+        if (!this.weights.isEmpty()) {
+            smallestKey = Collections.min(this.weights.keySet());
+            largestKey = Collections.max(this.weights.keySet());
         }
 
-        Integer smallestKey = Collections.min(this.weights.keySet());
-        Integer largestKey = Collections.max(this.weights.keySet());
-        return new KeyRange(smallestKey, largestKey);
+        return new KeyRange(smallestKey, largestKey + 1);
     }
 
     /**
-     * Get weights contained in key range
+     * Get all weights.
      *
-     * @param keyRange Defines the weights to select
-     * @return Map containing the requested weights
+     * @return Map containing all weights
      */
-    private Map<Integer, Float> getWeights(KeyRange keyRange) {
-
-        return this.weights.entrySet().stream()
-                .filter(entrySet -> keyRange.contains(entrySet.getKey()))
-                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (prev, next) -> next, HashMap::new));
+    private SerializableHashMap getWeights() {
+        return this.weights;
     }
 
     /**
@@ -106,7 +224,7 @@ public class ServerProcessor extends AbstractProcessor<Long, GradientMessage> {
      */
     private void updateWeight(Integer key, Float gradient) {
         Float oldWeight = this.weights.get(key);
-        Float newWeight = oldWeight - this.learningRate * gradient;
-        this.weights.put(key, newWeight);
+        this.weights.put(key, oldWeight + this.learningRate * gradient);
     }
 }
+

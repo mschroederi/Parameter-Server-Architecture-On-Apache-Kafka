@@ -6,3 +6,9 @@ build
 gradle
 gradlew
 gradlew.bat
+/log.csv
+/data/.ipynb_checkpoints/
+/data/Reviews.csv
+/data/reviews_embedded.csv
+/data/spam.csv
+/data/spam_embedded.csv

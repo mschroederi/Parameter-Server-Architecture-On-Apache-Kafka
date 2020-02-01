@@ -20,7 +20,7 @@ public abstract class BaseKafkaApp implements Callable<Void> {
     public final static String brokers = "localhost:29092";
 
     @Override
-    public Void call() throws Exception {
+    public Void call() {
         final Properties properties = this.getProperties();
         final Topology topology = getTopology(properties);
         final KafkaStreams streams = new KafkaStreams(topology, properties);
@@ -40,13 +40,14 @@ public abstract class BaseKafkaApp implements Callable<Void> {
         return null;
     }
 
-    private Properties getProperties() {
+    protected Properties getProperties() {
         Properties props = new Properties();
         props.put(StreamsConfig.APPLICATION_ID_CONFIG, this.APPLICATION_ID_CONFIG());
         props.put(StreamsConfig.APPLICATION_SERVER_CONFIG, String.format("%s:%s", this.host, this.port));
         props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, brokers);
         props.put(StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.Long().getClass().getName());
         props.put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, JSONSerde.class.getName());
+        props.put(StreamsConfig.NUM_STREAM_THREADS_CONFIG, 4);
         props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
 
         // Enable tracking message flow in Confluent Control Center

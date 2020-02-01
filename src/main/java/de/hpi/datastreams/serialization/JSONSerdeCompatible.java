@@ -11,11 +11,15 @@ import de.hpi.datastreams.messages.*;
 @SuppressWarnings("DefaultAnnotationParam")
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "_t")
 @JsonSubTypes({
+        @JsonSubTypes.Type(value = LabeledDataWithAge.class, name = "LabeledDataWithAge"),
         @JsonSubTypes.Type(value = DataMessage.class, name = "dMsg"),
         @JsonSubTypes.Type(value = WeightsMessage.class, name = "wMsg"),
         @JsonSubTypes.Type(value = GradientMessage.class, name = "gMsg"),
         @JsonSubTypes.Type(value = KeyRange.class, name = "keyRange"),
         @JsonSubTypes.Type(value = MyArrayList.class, name = "myArrayList"),
+        @JsonSubTypes.Type(value = SerializableHashMap.class, name = "serializableHashMap"),
+        @JsonSubTypes.Type(value = LabeledData.class, name = "LabeledData"),
+
 })
 public
 interface JSONSerdeCompatible {

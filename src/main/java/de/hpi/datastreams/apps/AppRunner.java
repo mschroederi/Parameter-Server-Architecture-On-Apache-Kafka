@@ -1,44 +1,55 @@
 package de.hpi.datastreams.apps;
 
-import de.hpi.datastreams.messages.GradientMessage;
-import de.hpi.datastreams.messages.KeyRange;
-import de.hpi.datastreams.messages.WeightsMessage;
 import de.hpi.datastreams.producer.CsvProducer;
-import de.hpi.datastreams.producer.ProducerBuilder;
-import org.apache.kafka.clients.producer.Producer;
-import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
 
 import java.io.File;
-import java.util.HashMap;
-
-import static de.hpi.datastreams.apps.App.START_VC;
+import java.io.FileNotFoundException;
+import java.io.PrintStream;
 
 
 class AppRunner {
-    public static void main(String[] args) {
-        App server = new App(20);
+    public static void main(String[] args) throws FileNotFoundException {
 
-        String pathToCSV = new File("./mockData//sample_input_data.csv").getAbsolutePath();
-        CsvProducer producer = new CsvProducer(pathToCSV);
+        PrintStream fileOut = new PrintStream("./log.csv");
+        System.setOut(fileOut);
+
+        System.out.println("timestamp;partition;vectorClock;loss;fMeasure");
+
+        // Turn off logging
+        Logger.getRootLogger().setLevel(Level.OFF);
+        Logger.getLogger("org").setLevel(Level.OFF);
+        Logger.getLogger("akka").setLevel(Level.OFF);
+
+        App server = new App(128);
+
+//        String pathToCSV = new File("./data/spam_embedded.csv").getAbsolutePath();
+        String pathToCSV = new File("./data/reviews_embedded.csv").getAbsolutePath();
+        CsvProducer inputDataProducer = new CsvProducer(pathToCSV, App.INPUT_DATA_TOPIC);
+        CsvProducer predictionDataProducer = new CsvProducer(pathToCSV, App.PREDICTION_DATA_TOPIC); // in a real scenario this would not be the same csv file as the inputData
 
         try {
-            server.call();
+            // Generate stream data in background
+            Thread inputDataThread = inputDataProducer.runProducerInBackground();
+            inputDataThread.start();
 
             Thread.sleep(1000);
-            Producer<Long, GradientMessage> gradientMessageProducer = ProducerBuilder.build("client-initial-gradientMessageProducer");
+            server.call();
 
-            for (Long partition = 0L; partition < 4L; partition++) {
-                GradientMessage gradientMessage = new GradientMessage(START_VC, new KeyRange(0, 1), new HashMap<>(), partition);
-                gradientMessageProducer.send(new ProducerRecord<>(App.GRADIENTS_TOPIC, partition, gradientMessage));
-            }
 
-            WeightsMessage weightsMessage = new WeightsMessage(START_VC, new KeyRange(0, 1), new HashMap<>());
-            Producer<Long, WeightsMessage> weightsMessageProducer = ProducerBuilder.build("client-initial-weightsMessageProducer");
-            weightsMessageProducer.send(new ProducerRecord<>(App.WEIGHTS_TOPIC, 0L, weightsMessage));
 
-            producer.runProducer();
+            Thread.sleep(10000); // wait 10 sec before starting predictions
+//            Thread predictionDataThread = predictionDataProducer.runProducerInBackground();
+//            predictionDataThread.start();
+
+            inputDataThread.join();
+//            predictionDataThread.join();
+
+            // TODO: investigate the option of a "Scheduler" to avoid starting everything right from the beginning
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 }
+
