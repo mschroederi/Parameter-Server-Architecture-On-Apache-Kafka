@@ -37,6 +37,7 @@ public class ServerProcessor extends AbstractProcessor<Long, GradientMessage> {
     private final Float learningRate = 1f / numWorkers;
     private Producer<Long, WeightsMessage> weightsMessageProducer;
 
+    LogisticRegressionTaskSpark lgTask = new LogisticRegressionTaskSpark();
     private MessageTracker messageTracker = new MessageTracker(App.numWorkers);
 
     private Cancellable trainingLoopStarter;
@@ -147,10 +148,17 @@ public class ServerProcessor extends AbstractProcessor<Long, GradientMessage> {
         });
 
         // Log weights every 10 vector clocks
-        if (message.getVectorClock() % 10 == 0 && message.getPartitionKey() == 0) {
-            // print the weights each 10 iterations
-//            System.out.println("Weights in iteration " + message.getVectorClock() + ":");
-//            this.weights.get(0L).forEach((key, value) -> System.out.println(key + " " + value));
+        if (message.getVectorClock() % 1 == 0 && message.getPartitionKey() == 0) {
+            this.lgTask.setWeights(this.weights);
+            this.lgTask.calculateTestMetrics();
+
+            System.out.println(String.format(
+                    "%d;%d;%d;%s;%s;%s", new Date().getTime(),
+                    Math.toIntExact(-1), message.getVectorClock(),
+                    -1,
+                    this.lgTask.getMetrics().weightedFMeasure(),
+                    this.lgTask.getMetrics().accuracy()
+            ));
         }
 
         /*
@@ -175,10 +183,9 @@ public class ServerProcessor extends AbstractProcessor<Long, GradientMessage> {
      * Generates and stores the ML model's initial weights.
      */
     private void setInitialWeights() {
-        LogisticRegressionTaskSpark lgTask = new LogisticRegressionTaskSpark();
-        lgTask.initialize(true);
+        this.lgTask.initialize(true);
 
-        this.weights = lgTask.getWeights();
+        this.weights = this.lgTask.getWeights();
 
         // All weights are stored on node 0
 //        this.weights.put(0L, lgTask.getWeights());

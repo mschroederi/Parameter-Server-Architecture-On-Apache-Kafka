@@ -12,3 +12,6 @@ gradlew.bat
 /data/reviews_embedded.csv
 /data/spam.csv
 /data/spam_embedded.csv
+/data/reviews_embedded_test.csv
+/data/reviews_embedded_train.csv
+/data/score/

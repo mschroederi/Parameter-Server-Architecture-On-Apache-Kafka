@@ -15,7 +15,7 @@ class AppRunner {
         PrintStream fileOut = new PrintStream("./log.csv");
         System.setOut(fileOut);
 
-        System.out.println("timestamp;partition;vectorClock;loss;fMeasure");
+        System.out.println("timestamp;partition;vectorClock;loss;fMeasure;accuracy");
 
         // Turn off logging
         Logger.getRootLogger().setLevel(Level.OFF);
@@ -25,7 +25,7 @@ class AppRunner {
         App server = new App(128);
 
 //        String pathToCSV = new File("./data/spam_embedded.csv").getAbsolutePath();
-        String pathToCSV = new File("./data/reviews_embedded.csv").getAbsolutePath();
+        String pathToCSV = new File("./data/reviews_embedded_train.csv").getAbsolutePath();
         CsvProducer inputDataProducer = new CsvProducer(pathToCSV, App.INPUT_DATA_TOPIC);
         CsvProducer predictionDataProducer = new CsvProducer(pathToCSV, App.PREDICTION_DATA_TOPIC); // in a real scenario this would not be the same csv file as the inputData
 

@@ -88,10 +88,13 @@ public class WorkerTrainingProcessor
         if (message.getVectorClock() % 1 == 0) {
             MulticlassMetrics metrics = this.logisticRegressionTaskSpark.get(partitionKey).getMetrics();
             System.out.println(String.format(
-                    "%d;%d;%d;%s;%s", new Date().getTime(),
+                    "%d;%d;%d;%s;%s;%s", new Date().getTime(),
                     Math.toIntExact(partitionKey), message.getVectorClock(),
                     this.logisticRegressionTaskSpark.get(partitionKey).getLoss(),
-                    metrics.weightedFMeasure()
+//                    metrics.logLoss(1e-15),
+//                    metrics.hammingLoss(),
+                    metrics.weightedFMeasure(),
+                    metrics.accuracy()
             ));
         }
 
