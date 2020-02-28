@@ -39,14 +39,17 @@ public class App extends BaseKafkaApp {
     // Regular training iterations (vector clocks) are counted from 0 upwards.
     public static Integer START_VC = -1;
 
-    private long bufferSize;
+    private long minBufferSize;
+    private long maxBufferSize;
 
     public App() {
-        this.bufferSize = 1000;
+        this.minBufferSize = 64;
+        this.maxBufferSize = 128;
     }
 
-    public App(int bufferSize) {
-        this.bufferSize = bufferSize;
+    public App(int minBufferSize, int maxBufferSize) {
+        this.minBufferSize = minBufferSize;
+        this.maxBufferSize = maxBufferSize;
 
         try {
             this.createTopics();
@@ -78,7 +81,7 @@ public class App extends BaseKafkaApp {
 
         return new Topology()
                 .addSource("data-source", INPUT_DATA_TOPIC)
-                .addProcessor("SamplingProcessor", () -> new WorkerSamplingProcessor(this.bufferSize), "data-source")
+                .addProcessor("SamplingProcessor", () -> new WorkerSamplingProcessor(this.minBufferSize, this.maxBufferSize), "data-source")
 
 //                .addSource("prediction-source", PREDICTION_DATA_TOPIC)
 //                .addProcessor("PredictionProcessor", PredictionProcessor::new, "prediction-source")

@@ -40,7 +40,7 @@ public class WorkerTrainingProcessor
 
         this.logisticRegressionTaskSpark = new HashMap<>();
 
-        for (long partitionKey = 0L; partitionKey < App.numWorkers; partitionKey++) {
+        for (long partitionKey = 0L; partitionKey < App.numWorkers; partitionKey++) { // TODO: why does each worker need a map of regressionTasks???
             this.logisticRegressionTaskSpark.put(partitionKey, new LogisticRegressionTaskSpark());
         }
     }
@@ -76,14 +76,9 @@ public class WorkerTrainingProcessor
 
         MyArrayList<LabeledDataWithAge> dataOnPartition = iterator.next().value;
 
-//        System.out.println(String.format(
-//                "TrainingProcessor (partition %d) - received WeightsMessage VC: %d - DataCount: %d",
-//                Math.toIntExact(partitionKey), message.getVectorClock(), dataOnPartition.size()));
-
         // Calculate gradients based on the local data
         SerializableHashMap gradients = this.logisticRegressionTaskSpark.get(partitionKey)
                 .calculateGradients(dataOnPartition);
-
 
         if (message.getVectorClock() % 1 == 0) {
             MulticlassMetrics metrics = this.logisticRegressionTaskSpark.get(partitionKey).getMetrics();
@@ -97,6 +92,7 @@ public class WorkerTrainingProcessor
                     metrics.accuracy()
             ));
         }
+
 
         // Wrap gradients in GradientMessage and send gradients to the ServerProcessor
         GradientMessage gradientsMsg = new GradientMessage(message.getVectorClock(),

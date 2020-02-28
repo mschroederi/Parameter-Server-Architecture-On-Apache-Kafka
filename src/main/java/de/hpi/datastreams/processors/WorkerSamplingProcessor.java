@@ -10,13 +10,21 @@ import org.apache.kafka.streams.processor.ProcessorContext;
 import org.apache.kafka.streams.state.KeyValueIterator;
 import org.apache.kafka.streams.state.KeyValueStore;
 
+import java.util.LinkedList;
+import java.util.OptionalDouble;
+
 public class WorkerSamplingProcessor extends AbstractProcessor<Long, LabeledData> {
 
     private KeyValueStore<Long, MyArrayList<LabeledDataWithAge>> inputDataBuffer;
-    private long bufferSize;
+    private LinkedList<Long> processingTimes = new LinkedList<>();
+    private long PROCESSING_INTERVAL_SIZE = 500;
+    private Long lastProcessedTime = null;
+    private long maxBufferSize;
+    private long minBufferSize;
 
-    public WorkerSamplingProcessor(long bufferSize) {
-        this.bufferSize = bufferSize;
+    public WorkerSamplingProcessor(long minBufferSize, long maxBufferSize) {
+        this.minBufferSize = minBufferSize;
+        this.maxBufferSize = maxBufferSize;
     }
 
     @Override
@@ -35,6 +43,8 @@ public class WorkerSamplingProcessor extends AbstractProcessor<Long, LabeledData
      */
     @Override
     public void process(Long partitionKey, LabeledData labeledData) {
+        this.handleNewProcessingTime();
+
         KeyValueIterator<Long, MyArrayList<LabeledDataWithAge>> iterator =
                 this.inputDataBuffer.range(partitionKey, partitionKey);
 
@@ -44,7 +54,7 @@ public class WorkerSamplingProcessor extends AbstractProcessor<Long, LabeledData
 
             // Remove first element of ring buffer
             // if the buffer will exceed the maximum allowed buffer size
-            if (data.value.size() >= this.bufferSize) {
+            while (data.value.size() >= this.calculateCurrentBufferSize()) {
                 data.value.remove(0);
             }
 
@@ -60,5 +70,29 @@ public class WorkerSamplingProcessor extends AbstractProcessor<Long, LabeledData
             // Store in KeyValueStore
             this.inputDataBuffer.put(partitionKey, data);
         }
+    }
+
+    public long calculateCurrentBufferSize(){
+        OptionalDouble medianTimeDifference = this.processingTimes.stream().mapToLong(time -> time).average();
+        double eventsPerMinute = 60000 / medianTimeDifference.orElse(1);
+        System.out.println("Events per minute: " + eventsPerMinute);
+
+        // This can be modified in order to use a different function for describing the relationship between number of events and buffer size
+        long calculatedBufferSize = Math.round(0.3 * eventsPerMinute);
+        System.out.println("buffer size: " + Math.max(this.minBufferSize, Math.min(this.maxBufferSize, calculatedBufferSize)));
+        return Math.max(this.minBufferSize, Math.min(this.maxBufferSize, calculatedBufferSize));
+    }
+
+    public void handleNewProcessingTime(){
+        if (this.lastProcessedTime == null) {
+            this.lastProcessedTime = System.currentTimeMillis();
+            return;
+        }
+
+        long currentTime = System.currentTimeMillis();
+        this.processingTimes.addLast(currentTime - this.lastProcessedTime);
+        this.lastProcessedTime = currentTime;
+        if (this.processingTimes.size() > PROCESSING_INTERVAL_SIZE) // TODO: consider making this time dependent and not size dependent
+            this.processingTimes.removeFirst();
     }
 }
