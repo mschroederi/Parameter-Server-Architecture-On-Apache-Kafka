@@ -25,8 +25,14 @@ public class WorkerTrainingProcessor
         extends AbstractProcessor<Long, WeightsMessage> {
 
     private Producer<Long, GradientMessage> gradientMessageProducer;
-    KeyValueStore<Long, MyArrayList<LabeledDataWithAge>> data;
+    KeyValueStore<Long, LabeledDataWithAge> data;
     Map<Long, LogisticRegressionTaskSpark> logisticRegressionTaskSpark;
+
+    private int maxBufferSize;
+
+    public WorkerTrainingProcessor(int maxBufferSize) {
+        this.maxBufferSize = maxBufferSize;
+    }
 
     @Override
     @SuppressWarnings(value = "unchecked")
@@ -35,7 +41,7 @@ public class WorkerTrainingProcessor
         this.gradientMessageProducer = ProducerBuilder.build(
                 "client-gradientMessageProducer-" + UUID.randomUUID().toString());
 
-        this.data = (KeyValueStore<Long, MyArrayList<LabeledDataWithAge>>)
+        this.data = (KeyValueStore<Long, LabeledDataWithAge>)
                 context.getStateStore(App.INPUT_DATA_BUFFER);
 
         this.logisticRegressionTaskSpark = new HashMap<>();
@@ -56,7 +62,7 @@ public class WorkerTrainingProcessor
 
 //        System.out.println("Received weightsMessage on partition " + partitionKey);
 
-        // If the received message is the first one
+        // If the received message is the first of its kind on a partition
         // the LogisticRegressionTaskSpark has not been initialized yet
         if (!this.logisticRegressionTaskSpark.get(partitionKey).isInitialized()) {
             this.logisticRegressionTaskSpark.get(partitionKey).initialize(false);
@@ -64,17 +70,7 @@ public class WorkerTrainingProcessor
 
         // Set ML model's weights according to the by the ServerProcessor send parameters
         this.logisticRegressionTaskSpark.get(partitionKey).setWeights(message.getValues());
-
-        KeyValueIterator<Long, MyArrayList<LabeledDataWithAge>> iterator =
-                this.data.range(partitionKey, partitionKey);
-
-        // NOTE: The condition below should never be met
-        // because the producer is started before the app is initialized
-        if (!iterator.hasNext()) {
-            throw new IllegalStateException(String.format("There is no data for partition %d", partitionKey));
-        }
-
-        MyArrayList<LabeledDataWithAge> dataOnPartition = iterator.next().value;
+        ArrayList<LabeledDataWithAge> dataOnPartition = this.getDataOnPartition(partitionKey);
 
         // Calculate gradients based on the local data
         SerializableHashMap gradients = this.logisticRegressionTaskSpark.get(partitionKey)
@@ -93,7 +89,6 @@ public class WorkerTrainingProcessor
             ));
         }
 
-
         // Wrap gradients in GradientMessage and send gradients to the ServerProcessor
         GradientMessage gradientsMsg = new GradientMessage(message.getVectorClock(),
                 this.getKeyRange(partitionKey), gradients, partitionKey);
@@ -109,6 +104,33 @@ public class WorkerTrainingProcessor
         Integer smallestKey = Collections.min(this.logisticRegressionTaskSpark.get(partitionKey).getWeights().keySet());
         Integer largestKey = Collections.max(this.logisticRegressionTaskSpark.get(partitionKey).getWeights().keySet());
         return new KeyRange(smallestKey, largestKey);
+    }
+
+    /**
+     * Extract data tuples from state store
+     *
+     * @param partitionKey current partition key
+     * @return ArrayList containing all relevant data tuples
+     */
+    private ArrayList<LabeledDataWithAge> getDataOnPartition(Long partitionKey) {
+        long startOfDataKeySpace = partitionKey * this.maxBufferSize;
+        long endOfDataKeySpace = startOfDataKeySpace + this.maxBufferSize;
+        KeyValueIterator<Long, LabeledDataWithAge> iterator =
+                this.data.range(startOfDataKeySpace, endOfDataKeySpace);
+
+        ArrayList<LabeledDataWithAge> dataOnPartition = new ArrayList<>();
+        while (iterator.hasNext()) {
+            dataOnPartition.add(iterator.next().value);
+        }
+        iterator.close();
+
+        // NOTE: The condition below should never be met
+        // because the producer is started before the app is initialized
+        if (dataOnPartition.isEmpty()) {
+            throw new IllegalStateException(String.format("There is no data for partition %d", partitionKey));
+        }
+
+        return dataOnPartition;
     }
 
 

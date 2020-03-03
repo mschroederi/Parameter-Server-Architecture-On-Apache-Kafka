@@ -24,30 +24,25 @@ public class LabeledDataWithAge implements JSONSerdeCompatible {
     @Setter
     Integer label;
 
-    @JsonProperty("age")
+    @JsonProperty("insertionID")
     @Getter
     @Setter
-    Integer age;
+    Long insertionID;
 
     @JsonCreator
-    public LabeledDataWithAge(@JsonProperty("inputFeatures") Map<Integer, Float> data, @JsonProperty("label") Integer label, @JsonProperty("age") Integer age) {
+    public LabeledDataWithAge(@JsonProperty("inputFeatures") Map<Integer, Float> data, @JsonProperty("label") Integer label, @JsonProperty("insertionID") Long insertionID) {
         this.inputFeatures = data;
         this.label = label;
-        this.age = age;
+        this.insertionID = insertionID;
     }
 
     @JsonIgnore
-    public void increaseAge() {
-        this.age++;
-    }
-
-    @JsonIgnore
-    public static LabeledDataWithAge from(Map<Integer, Float> data, Integer label) {
-        return new LabeledDataWithAge(data, label, 0);
+    public static LabeledDataWithAge from(Map<Integer, Float> data, Integer label, Long insertionID) {
+        return new LabeledDataWithAge(data, label, insertionID);
     }
 
     @Override
     public String toString() {
-        return String.format("DataEntry(%s, %d, %d)", inputFeatures.toString(), label, age);
+        return String.format("DataEntry(%s, %d, %d)", inputFeatures.toString(), label, insertionID);
     }
 }

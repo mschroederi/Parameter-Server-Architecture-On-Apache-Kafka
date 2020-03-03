@@ -39,8 +39,8 @@ public class App extends BaseKafkaApp {
     // Regular training iterations (vector clocks) are counted from 0 upwards.
     public static Integer START_VC = -1;
 
-    private long minBufferSize;
-    private long maxBufferSize;
+    private int minBufferSize;
+    private int maxBufferSize;
 
     public App() {
         this.minBufferSize = 64;
@@ -61,7 +61,7 @@ public class App extends BaseKafkaApp {
         Logger.getLogger("org").setLevel(Level.OFF);
     }
 
-    private void createTopics() throws IOException {
+    private void createTopics() {
         AdminClient adminClient = AdminClient.create(this.getProperties());
 
         List<NewTopic> newTopics = new ArrayList<>();
@@ -90,7 +90,7 @@ public class App extends BaseKafkaApp {
                 .addProcessor("ServerProcessor", ServerProcessor::new, "gradients-source")
 
                 .addSource("weights-source", WEIGHTS_TOPIC)
-                .addProcessor("TrainingProcessor", WorkerTrainingProcessor::new, "weights-source")
+                .addProcessor("TrainingProcessor", () -> new WorkerTrainingProcessor(this.maxBufferSize), "weights-source")
 
 
                 .addStateStore(Stores.keyValueStoreBuilder(

@@ -2,10 +2,8 @@ package de.hpi.datastreams.ml;
 
 import de.hpi.datastreams.messages.LabeledData;
 import de.hpi.datastreams.messages.LabeledDataWithAge;
-import de.hpi.datastreams.messages.MyArrayList;
 import de.hpi.datastreams.messages.SerializableHashMap;
 import lombok.Getter;
-import org.apache.commons.lang.math.IntRange;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
@@ -92,13 +90,12 @@ public class LogisticRegressionTaskSpark {
                 .map(row -> {
                     Integer label = (Integer) row.get(row.fieldIndex("Score"));
 
-                    Object features =  row.get(row.fieldIndex("features"));
+                    Object features = row.get(row.fieldIndex("features"));
                     if (features instanceof org.apache.spark.ml.linalg.SparseVector) {
                         org.apache.spark.ml.linalg.SparseVector featuresSparse =
                                 (org.apache.spark.ml.linalg.SparseVector) features;
                         return new LabeledPoint(label, org.apache.spark.mllib.linalg.Vectors.dense(featuresSparse.toDense().values()));
-                    }
-                    else {
+                    } else {
                         org.apache.spark.ml.linalg.DenseVector featuresDense =
                                 (org.apache.spark.ml.linalg.DenseVector) row.get(row.fieldIndex("features"));
                         return new LabeledPoint(label, org.apache.spark.mllib.linalg.Vectors.dense(featuresDense.values()));
@@ -154,13 +151,14 @@ public class LogisticRegressionTaskSpark {
         return interceptArr;
     }
 
-    public SerializableHashMap calculateGradients(MyArrayList<LabeledDataWithAge> dataToBeLearned, int numMaxIter) {
+    public SerializableHashMap calculateGradients(ArrayList<LabeledDataWithAge> dataToBeLearned, int numMaxIter) {
 
         // Requires initialization
         assert this.isInitialized;
 
         // Increase age of consumed data
-        dataToBeLearned.forEach(LabeledDataWithAge::increaseAge);
+        // TODO
+//        dataToBeLearned.forEach(LabeledDataWithAge::increaseAge);
 
         List<Row> localTraining = new ArrayList<>();
         dataToBeLearned.forEach((LabeledDataWithAge ld) -> {
@@ -269,7 +267,7 @@ public class LogisticRegressionTaskSpark {
      * @param dataToBeLearned
      * @return
      */
-    public SerializableHashMap calculateGradients(MyArrayList<LabeledDataWithAge> dataToBeLearned) {
+    public SerializableHashMap calculateGradients(ArrayList<LabeledDataWithAge> dataToBeLearned) {
         return this.calculateGradients(dataToBeLearned, numMaxIter);
     }
 

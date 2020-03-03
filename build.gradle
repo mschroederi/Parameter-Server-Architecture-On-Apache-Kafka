@@ -1,5 +1,8 @@
-apply plugin: 'java'
-apply plugin: 'application'
+plugins {
+    id 'java'
+    id 'application'
+    id 'org.openjfx.javafxplugin' version '0.0.8'
+}
 
 sourceCompatibility = 1.8
 
@@ -35,4 +38,9 @@ dependencies {
     compile group: 'org.apache.spark', name: 'spark-mllib_2.12', version: '3.0.0-preview2'
     compile group: 'org.apache.spark', name: 'spark-core_2.12', version: '3.0.0-preview2'
     compile group: 'org.apache.spark', name: 'spark-sql_2.12', version: '3.0.0-preview2'
+}
+
+javafx {
+    version = "13"
+    modules = [ 'javafx.controls', 'javafx.fxml' ]
 }

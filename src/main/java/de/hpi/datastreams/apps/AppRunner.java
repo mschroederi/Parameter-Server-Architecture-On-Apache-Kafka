@@ -22,7 +22,7 @@ class AppRunner {
         Logger.getLogger("org").setLevel(Level.OFF);
         Logger.getLogger("akka").setLevel(Level.OFF);
 
-        App server = new App(64, 128);
+        App server = new App(128, 1024);
 
 //        String pathToCSV = new File("./data/spam_embedded.csv").getAbsolutePath();
         String pathToCSV = new File("./data/reviews_embedded_train.csv").getAbsolutePath();
