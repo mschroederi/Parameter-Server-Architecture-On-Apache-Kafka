@@ -113,11 +113,9 @@ public class WorkerSamplingProcessor extends AbstractProcessor<Long, LabeledData
     private int calculateCurrentBufferSize() {
         OptionalDouble meanTimeDifference = this.processingTimes.stream().mapToLong(time -> time).average();
         double eventsPerMinute = 60000 / meanTimeDifference.orElse(1000);
-//        System.out.println("Events per minute: " + eventsPerMinute);
 
         // This can be modified in order to use a different function for describing the relationship between number of events and buffer size
         int calculatedBufferSize = (int) Math.round(0.3 * eventsPerMinute);
-//        System.out.println("buffer size: " + Math.max(this.minBufferSize, Math.min(this.maxBufferSize, calculatedBufferSize)));
         return Math.max(this.minBufferSize, Math.min(this.maxBufferSize, calculatedBufferSize));
     }
 
