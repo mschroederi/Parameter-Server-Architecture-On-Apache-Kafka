@@ -1,6 +1,6 @@
 package de.hpi.datastreams.processors;
 
-import de.hpi.datastreams.apps.App;
+import de.hpi.datastreams.apps.WorkerApp;
 import de.hpi.datastreams.messages.*;
 import de.hpi.datastreams.ml.LogisticRegressionTaskSpark;
 import de.hpi.datastreams.producer.ProducerBuilder;
@@ -14,7 +14,7 @@ import org.apache.spark.mllib.evaluation.MulticlassMetrics;
 
 import java.util.*;
 
-import static de.hpi.datastreams.apps.App.GRADIENTS_TOPIC;
+import static de.hpi.datastreams.apps.WorkerApp.GRADIENTS_TOPIC;
 
 
 /**
@@ -42,11 +42,11 @@ public class WorkerTrainingProcessor
                 "client-gradientMessageProducer-" + UUID.randomUUID().toString());
 
         this.data = (KeyValueStore<Long, LabeledDataWithAge>)
-                context.getStateStore(App.INPUT_DATA_BUFFER);
+                context.getStateStore(WorkerApp.INPUT_DATA_BUFFER);
 
         this.logisticRegressionTaskSpark = new HashMap<>();
 
-        for (long partitionKey = 0L; partitionKey < App.numWorkers; partitionKey++) { // TODO: why does each worker need a map of regressionTasks???
+        for (long partitionKey = 0L; partitionKey < WorkerApp.numWorkers; partitionKey++) { // TODO: why does each worker need a map of regressionTasks???
             this.logisticRegressionTaskSpark.put(partitionKey, new LogisticRegressionTaskSpark());
         }
     }
@@ -60,7 +60,7 @@ public class WorkerTrainingProcessor
     @Override
     public void process(Long partitionKey, WeightsMessage message) {
 
-//        System.out.println("Received weightsMessage on partition " + partitionKey);
+        // System.out.println("Received weightsMessage on partition " + partitionKey);
 
         // If the received message is the first of its kind on a partition
         // the LogisticRegressionTaskSpark has not been initialized yet

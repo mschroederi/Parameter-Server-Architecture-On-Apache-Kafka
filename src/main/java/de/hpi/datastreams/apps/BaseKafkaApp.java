@@ -1,6 +1,8 @@
 package de.hpi.datastreams.apps;
 
 import de.hpi.datastreams.serialization.JSONSerde;
+import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.Serdes;
@@ -8,12 +10,30 @@ import org.apache.kafka.streams.KafkaStreams;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.Topology;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 
 import static org.apache.kafka.common.requests.DeleteAclsResponse.log;
 
 public abstract class BaseKafkaApp implements Callable<Void> {
+
+    public final static int numWorkers = 4;
+
+    public final static String INPUT_DATA_TOPIC = "INPUT_DATA";
+    public final static Integer INPUT_DATA_NUM_PARTITIONS = numWorkers;
+    public final static String INPUT_DATA_BUFFER = "INPUT_DATA_BUFFER";
+
+    public final static String GRADIENTS_TOPIC = "GRADIENTS_TOPIC";
+    public final static String WEIGHTS_TOPIC = "WEIGHTS_TOPIC";
+    public final static Integer WEIGHTS_TOPIC_NUM_PARTITIONS = numWorkers;
+
+    public final static String PREDICTION_DATA_TOPIC = "PREDICTION_DATA_TOPIC";
+    public final static String PREDICTION_OUTPUT_TOPIC = "PREDICTION_OUTPUT_TOPIC";
+    public final static String WEIGHTS_STORE = "WEIGHTS_STORE";
 
     private String host = "localhost";
     private int port = 8070;

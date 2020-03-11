@@ -1,6 +1,6 @@
 package de.hpi.datastreams.processors;
 
-import de.hpi.datastreams.apps.App;
+import de.hpi.datastreams.apps.WorkerApp;
 import de.hpi.datastreams.messages.GradientMessage;
 import de.hpi.datastreams.messages.KeyRange;
 import de.hpi.datastreams.messages.SerializableHashMap;
@@ -14,7 +14,6 @@ import org.apache.kafka.streams.processor.AbstractProcessor;
 import org.apache.kafka.streams.processor.Cancellable;
 import org.apache.kafka.streams.processor.ProcessorContext;
 import org.apache.kafka.streams.processor.PunctuationType;
-import org.apache.kafka.streams.state.KeyValueStore;
 import scala.Tuple2;
 
 import java.util.*;
@@ -22,7 +21,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 
-import static de.hpi.datastreams.apps.App.*;
+import static de.hpi.datastreams.apps.WorkerApp.*;
 
 /**
  * Apache Kafka processor responsible for synchronizing the TrainingProcessors.
@@ -38,7 +37,7 @@ public class ServerProcessor extends AbstractProcessor<Long, GradientMessage> {
     private Producer<Long, WeightsMessage> weightsMessageProducer;
 
     LogisticRegressionTaskSpark lgTask = new LogisticRegressionTaskSpark();
-    private MessageTracker messageTracker = new MessageTracker(App.numWorkers);
+    private MessageTracker messageTracker = new MessageTracker(WorkerApp.numWorkers);
 
     private Cancellable trainingLoopStarter;
 
@@ -108,7 +107,7 @@ public class ServerProcessor extends AbstractProcessor<Long, GradientMessage> {
         else if (this.maxVectorClockDelay == 0
                 && this.messageTracker.hasReceivedAllMessages(receivedVC)) {
             List<Tuple2<Long, Integer>> allPartitionKeys =
-                    Arrays.stream(new LongRange(0L, App.numWorkers - 1).toArray())
+                    Arrays.stream(new LongRange(0L, WorkerApp.numWorkers - 1).toArray())
                             .boxed()
                             .map(partitionKey -> new Tuple2<>(partitionKey, receivedVC + 1))
                             .collect(Collectors.toList());

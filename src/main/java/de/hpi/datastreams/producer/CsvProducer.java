@@ -16,7 +16,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static de.hpi.datastreams.apps.App.INPUT_DATA_NUM_PARTITIONS;
+import static de.hpi.datastreams.apps.WorkerApp.INPUT_DATA_NUM_PARTITIONS;
 
 public class CsvProducer {
 

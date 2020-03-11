@@ -1,6 +1,6 @@
 package de.hpi.datastreams.processors;
 
-import de.hpi.datastreams.apps.App;
+import de.hpi.datastreams.apps.WorkerApp;
 import de.hpi.datastreams.messages.*;
 import de.hpi.datastreams.ml.LogisticRegressionTaskSpark;
 import de.hpi.datastreams.producer.ProducerBuilder;
@@ -8,12 +8,11 @@ import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.streams.processor.AbstractProcessor;
 import org.apache.kafka.streams.processor.ProcessorContext;
-import org.apache.kafka.streams.state.KeyValueIterator;
 import org.apache.kafka.streams.state.KeyValueStore;
 
 import java.util.UUID;
 
-import static de.hpi.datastreams.apps.App.PREDICTION_OUTPUT_TOPIC;
+import static de.hpi.datastreams.apps.BaseKafkaApp.PREDICTION_OUTPUT_TOPIC;
 
 public class PredictionProcessor extends AbstractProcessor<Long, LabeledData> {
 
@@ -24,13 +23,15 @@ public class PredictionProcessor extends AbstractProcessor<Long, LabeledData> {
     @Override
     public void init(ProcessorContext context) {
         super.init(context);
-        this.weights = (KeyValueStore<Long, SerializableHashMap>) context.getStateStore(App.WEIGHTS_STORE);
+        this.weights = (KeyValueStore<Long, SerializableHashMap>) context.getStateStore(WorkerApp.WEIGHTS_STORE);
         this.predictionMessageProducer = ProducerBuilder.buildFloatValue("predictionProducer-" + UUID.randomUUID().toString());
         logisticRegressionTaskSpark = new LogisticRegressionTaskSpark();
     }
 
     @Override
     public void process(Long partitionKey, LabeledData value) {
+        System.out.println("Prediction process");
+
         // If the received message is the first one
         // the LogisticRegressionTaskSpark has not been initialized yet
         if (!this.logisticRegressionTaskSpark.isInitialized()) {
@@ -52,6 +53,6 @@ public class PredictionProcessor extends AbstractProcessor<Long, LabeledData> {
         System.out.println("PredictionProcessor - Calculating prediction: " + prediction);
 
         //Send the prediction to the consumer
-        //this.predictionMessageProducer.send(new ProducerRecord<>(PREDICTION_OUTPUT_TOPIC, prediction));
+        this.predictionMessageProducer.send(new ProducerRecord<>(PREDICTION_OUTPUT_TOPIC, prediction));
     }
 }

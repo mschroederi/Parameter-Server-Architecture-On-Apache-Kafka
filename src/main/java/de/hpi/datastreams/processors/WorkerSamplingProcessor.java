@@ -1,6 +1,6 @@
 package de.hpi.datastreams.processors;
 
-import de.hpi.datastreams.apps.App;
+import de.hpi.datastreams.apps.WorkerApp;
 import de.hpi.datastreams.messages.LabeledData;
 import de.hpi.datastreams.messages.LabeledDataWithAge;
 import javafx.util.Pair;
@@ -34,7 +34,7 @@ public class WorkerSamplingProcessor extends AbstractProcessor<Long, LabeledData
     public void init(ProcessorContext context) {
         super.init(context);
         this.inputDataBuffer = (KeyValueStore<Long, LabeledDataWithAge>)
-                context.getStateStore(App.INPUT_DATA_BUFFER);
+                context.getStateStore(WorkerApp.INPUT_DATA_BUFFER);
     }
 
     /**
