@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: parameter-server-server
+  labels:
+    app: parameter-server-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: parameter-server-server
+  template:
+    metadata:
+      labels:
+        app: parameter-server-server
+    spec:
+      containers:
+        - name: parameter-server-server
+          image: 061371762025.dkr.ecr.us-east-1.amazonaws.com/kafka-streaming-parameter-server
+          workingDir: /app

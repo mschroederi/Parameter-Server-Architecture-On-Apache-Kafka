@@ -85,7 +85,8 @@ public class LogisticRegressionTaskSpark {
                         .option("delimiter", ",")
                         .option("inferSchema", "true")
                         .option("header", "true")
-                        .load("./data/reviews_embedded_test.csv")
+                        .load("mockData/small-sample/small_sample_reviews_embedded_test.csv")
+                        //.load("./local_test_data.csv")
         ).toJavaRDD()
                 .map(row -> {
                     Integer label = (Integer) row.get(row.fieldIndex("Score"));
