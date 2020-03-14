@@ -47,11 +47,6 @@ class ServerAppRunner {
 
         System.out.println("timestamp;partition;vectorClock;loss;fMeasure;accuracy");
 
-        // Turn off logging
-        Logger.getRootLogger().setLevel(Level.OFF);
-        Logger.getLogger("org").setLevel(Level.OFF);
-        Logger.getLogger("akka").setLevel(Level.OFF);
-
         ServerApp server = new ServerApp();
 
         predictionDataProducer = new CsvProducer(predictionDataFile, WorkerApp.PREDICTION_DATA_TOPIC);

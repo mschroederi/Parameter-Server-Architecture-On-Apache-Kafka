@@ -16,4 +16,4 @@ WORKDIR /app
 
 COPY --from=build /app/build build
 
-CMD [ "java", "-jar", "build/libs/kafka-ps.jar" ]
+CMD [ "java", "-cp", "build/libs/app.jar", "de.hpi.datastreams.apps.ServerAppRunner"]

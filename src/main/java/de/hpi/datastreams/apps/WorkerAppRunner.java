@@ -14,7 +14,7 @@ import java.net.URL;
 
 
 class WorkerAppRunner {
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) throws InterruptedException {
         /*
         String testDataFilePath = "./local_test_data.csv";
         URL url = new URL("https://s3.eu-central-1.amazonaws.com/de.hpi.datastreams.parameter-server/small-test.csv");
@@ -27,10 +27,7 @@ class WorkerAppRunner {
 
         System.out.println("timestamp;partition;vectorClock;loss;fMeasure;accuracy");
 
-        // Turn off logging
-        Logger.getRootLogger().setLevel(Level.OFF);
-        Logger.getLogger("org").setLevel(Level.OFF);
-        Logger.getLogger("akka").setLevel(Level.OFF);
+        Thread.sleep(5000);
 
         WorkerApp worker = new WorkerApp(128, 1024);
 
