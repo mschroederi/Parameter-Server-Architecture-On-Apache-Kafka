@@ -9,11 +9,28 @@ We adapted this architecture to our needs and implemented it using Apache Kafka'
 [TODO: What will be explained/ evaluated in the following sections?]
 
 ## 2 Getting Started
-[TODO]
+
+### Prerequisites
+If you want to execute our implementation locally please ensure you have installed the following prerequisites in the right versions:
+1. Gradle in a version > 5.0 (To install Gradle please follow the official instructions: <https://gradle.org/install/>)
+2. Docker (To install Docker please follow the official instructions: <https://www.docker.com/products/docker-desktop>)
+
+### Clone the Repository
 ```$bash
 git clone git@github.com:mschroederi/Parameter-Server-Architecture-On-Apache-Kafka.git
-...
+cd ./Parameter-Server-Architecture-On-Apache-Kafka
 ```
+
+### Build & Run Locally
+Please make sure you fulfill the prerequisites defined above. 
+If you do so you can continue with the following steps:  
+1. _(Optionally)_ If you haven't done it yet, make sure you navigate into the project's root folder.
+2. Build the project using Gradle `gadle build`
+3. Open a new terminal window within the current location and execute `cd ./dev && docker-compose up`
+4. Execute `java -cp build/libs/kafka-ps-all.jar de.hpi.datastreams.apps.ServerAppRunner` within a new terminal at the current location.
+5. Execute `java -cp build/libs/kafka-ps-all.jar de.hpi.datastreams.apps.WorkerAppRunner` within a new terminal at the current location.
+
+Congratulations, you started the parameter server on Apache Kafka and are now training a logistic regression with one of our sample datasets. 🎉
 
 ## 3 Motivation
 Machine learning algorithms nowadays build up an integral part of products used by billions of users every day.
