@@ -15,4 +15,4 @@ WORKDIR /app
 
 COPY --from=build /app/build build
 
-CMD ["java", "-cp", build/libs/kafka-ps.jar", "de.hpi.datastreams.apps.WorkerAppRunner.java"]
+CMD ["java", "-cp", "build/libs/kafka-ps.jar", "de.hpi.datastreams.apps.WorkerAppRunner.java"]
