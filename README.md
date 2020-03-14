@@ -27,8 +27,8 @@ If you do so you can continue with the following steps:
 1. _(Optionally)_ If you haven't done it yet, make sure you navigate into the project's root folder.
 2. Build the project using Gradle `gadle build`
 3. Open a new terminal window within the current location and execute `cd ./dev && docker-compose up`
-4. Execute `java -cp build/libs/kafka-ps-all.jar de.hpi.datastreams.apps.ServerAppRunner` within a new terminal at the current location.
-5. Execute `java -cp build/libs/kafka-ps-all.jar de.hpi.datastreams.apps.WorkerAppRunner` within a new terminal at the current location.
+4. In a new terminal at the current location execute `java -cp build/libs/kafka-ps-all.jar de.hpi.datastreams.apps.ServerAppRunner`.
+5. In a new terminal at the current location execute  `java -cp build/libs/kafka-ps-all.jar de.hpi.datastreams.apps.WorkerAppRunner`.
 
 Congratulations, you started the parameter server on Apache Kafka and are now training a logistic regression with one of our sample datasets. 🎉
 
