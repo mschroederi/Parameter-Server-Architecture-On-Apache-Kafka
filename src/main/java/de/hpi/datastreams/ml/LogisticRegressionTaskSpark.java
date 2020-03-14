@@ -81,11 +81,11 @@ public class LogisticRegressionTaskSpark {
 
         this.testData = assembler.transform(
                 this.spark.sqlContext().read()
-                        .format("csv")
+                        .format("com.databricks.spark.csv")
                         .option("delimiter", ",")
                         .option("inferSchema", "true")
                         .option("header", "true")
-                        .load("mockData/small-sample/small_sample_reviews_embedded_test.csv")
+                        .load("./mockData/small-sample/small_sample_reviews_embedded_test.csv")
                         //.load("./local_test_data.csv")
         ).toJavaRDD()
                 .map(row -> {

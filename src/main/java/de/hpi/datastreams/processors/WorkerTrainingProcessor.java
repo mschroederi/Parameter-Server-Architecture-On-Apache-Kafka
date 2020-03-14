@@ -60,7 +60,7 @@ public class WorkerTrainingProcessor
     @Override
     public void process(Long partitionKey, WeightsMessage message) {
 
-        // System.out.println("Received weightsMessage on partition " + partitionKey);
+//         System.out.println("WorkerTrainingProcessor - Received weightsMessage on partition " + partitionKey);
 
         // If the received message is the first of its kind on a partition
         // the LogisticRegressionTaskSpark has not been initialized yet

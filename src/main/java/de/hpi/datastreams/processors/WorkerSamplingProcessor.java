@@ -46,6 +46,8 @@ public class WorkerSamplingProcessor extends AbstractProcessor<Long, LabeledData
      */
     @Override
     public void process(Long partitionKey, LabeledData labeledData) {
+//        System.out.println("WorkerSamplingProcessor - Received dataMessage on partition " + partitionKey);
+
         this.handleNewProcessingTime();
 
         int targetBufferSize = this.calculateCurrentBufferSize();
