@@ -41,7 +41,7 @@ public abstract class BaseKafkaApp implements Callable<Void> {
 
     private String host = "localhost";
     private int port = 8070;
-    public final static String brokers = "localhost:9092";
+    public final static String brokers = "localhost:29092";
 //    public final static String brokers = "kafka:9092";
 
     @Override
