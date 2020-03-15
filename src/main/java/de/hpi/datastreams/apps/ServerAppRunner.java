@@ -16,8 +16,8 @@ class ServerAppRunner {
         // create options
         Options options = new Options();
 
-        Option option_training_data = new Option("training", "training_data_file_path", true, "The link to an csv file that is used as training data.");
-        Option option_test_data = new Option("test", "test_data_file_path", true, "The link to an csv file that is used as test data (to compute statistics)");
+        Option option_training_data = new Option("training", "training_data_file_path", true, "The path to an csv file that is used as training data.");
+        Option option_test_data = new Option("test", "test_data_file_path", true, "The path to an csv file that is used as test data (to compute statistics)");
         Option option_consistency_model = new Option("c", "consistency_model", true, "A number that defines the consistency model (see README for details)");
         Option option_producer_time_per_event = new Option("p", "producer_time_per_event", true, "This is used to artificially increase/decrease the amount of events that created.");
         Option option_verbose = new Option("v", "verbose", false, "If enabled, prints the parameter that are used");

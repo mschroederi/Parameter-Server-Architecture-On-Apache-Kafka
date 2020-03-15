@@ -14,7 +14,7 @@ class WorkerAppRunner {
         // create options
         Options options = new Options();
 
-        Option option_test_data = new Option("test", "test_data_file_path", true, "The link to an csv file that is used as test data (to compute statistics)");
+        Option option_test_data = new Option("test", "test_data_file_path", true, "The path to an csv file that is used as test data (to compute statistics)");
         Option option_min_buffer = new Option("min", "min_buffer_size", true, "The minimum buffer size that stores the incoming events");
         Option option_max_buffer = new Option("max", "max_buffer_size", true, "The maximum buffer size that stores the incoming events");
         Option option_buffer_size_coefficient = new Option("bc", "buffer_size_coefficient", true, "This is used to calculate the buffer size dynamically. The coefficient is multiplied with the number of events per minute.");

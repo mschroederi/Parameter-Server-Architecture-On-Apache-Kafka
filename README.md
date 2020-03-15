@@ -18,6 +18,11 @@ git clone git@github.com:mschroederi/Parameter-Server-Architecture-On-Apache-Kaf
 cd ./Parameter-Server-Architecture-On-Apache-Kafka
 ```
 
+### Load the datasets
+1. Load the training- and testing-datasets as csv file.  
+   The links to the datasets that we have used are in the references [7], [8].
+2. _(Recommended)_ Copy them to `./data/` as `test.csv` and `train.csv`.
+
 ### Build & Run Locally
 Please make sure you fulfill the prerequisites defined above. 
 If you do so you can continue with the following steps:  
@@ -29,6 +34,44 @@ If you do so you can continue with the following steps:
 Congratulations, you started the parameter server on Apache Kafka and are now training a logistic regression with one of our sample datasets. 🎉  
 
 In order to tear down the kafka setup completely please execute `cd ./dev && docker-compose down -v`.
+
+### Overview of the available parameters for running the applications
+The `run.sh` script starts the `ServerAppRunner` and the `WorkerAppRunner`. Both take optional command line parameter, which can be added to the script.
+
+- Parameter for the `ServerAppRunner`:  
+
+  | Name                 | Default value                         | Description |
+  |----------------------|---------------------------------------|-------------|
+  | -training            | ./data/train.csv                      | The path to an csv file that is used as training data.            |
+  | -test                | ./data/test.csv                       | The path to an csv file that is used as test data (to compute statistics)            |
+  | --consistency_model  | 0 *(Sequential)*                      | This parameter is a number that defines the consistency model. For more information about this parameter, see the chapter "5.3 Consistency Models".            |
+  | -p                   | 200                                   | This parameter is used to control the speed at which events are produced. After each event, the producer waits for the specified amount of milliseconds.            |
+  | -v                   | *\<not set\>*                         | If this flag is set, the used values of the arguments are printed at the beginning.            |
+  | -h                   | *\<not set\>*                         | If this flag is set, the application prints a help menu and exits immediately            |
+  | -r                   | *\<not set\>*                         | If this flag is set, `kafka:9092` is used as bootstrap server. Otherwise `localhost:29092` is used. This should only be set if the application is run on a cluster.            |
+  | -l                   | *\<not set\>* (enabled in `run.sh` )  | If this flag is set, the output of the application is written into the file `./logs-server.csv`. This is useful for evaluation.              |
+
+- Parameter for the `WorkerAppRunner`:
+
+  | Name                 | Default value                         | Description |
+  |----------------------|---------------------------------------|-------------|
+  | -test                | ./data/test.csv                       | The path to an csv file that is used as test data (to compute statistics)            |
+  | -min                 | 128                                   | The minimum size for the buffer that stores the latest input events.            |
+  | -max                 | 1024                                  | The maximum size for the buffer that stores the latest input events.            |
+  | -bc                  | 0.3                                   | The buffer size for the latest input events is calculated dynamically (within the bounds of the minimum and maximum size). This parameter is the coefficient for the relation between the buffer size and the events per minute. (`buffer_size = coefficient * events_per_minute`)            |
+  | -v                   | *\<not set\>*                         | If this flag is set, the used values of the arguments are printed at the beginning.             |
+  | -h                   | *\<not set\>*                         | If this flag is set, the application prints a help menu and exits immediately            |
+  | -r                   | *\<not set\>*                         | If this flag is set, `kafka:9092` is used as bootstrap server. Otherwise `localhost:29092` is used. This should only be set if the application is run on a cluster.            |
+  | -l                   | *\<not set\>* (enabled in `run.sh` )  | If this flag is set, the output of the application is written into the file `./logs-worker.csv`. This is useful for evaluation.            |
+
+- Additional parameter that are hardcoded in the code:
+
+  | Name           | Location                          | Description |
+  |----------------|-----------------------------------|-------------|
+  | numWorkers     | BaseKafkaApp.java                 | Defines the number of workers. This variable is also used to define the number of partitions for the `INPUT_TOPIC` and `WEIGHTS_TOPIC`.           |
+  | numFeatures    | LogisticRegressionTaskSpark.java  | The implementation of the logistic regression algorithm needs to know the number of features. This is hardcoded for the dataset that we have used.           |
+  | numClasses     | LogisticRegressionTaskSpark.java  | The implementation of the logistic regression algorithm needs to know the number of classes. This is hardcoded for the dataset that we have used.            |
+
 
 ## 3 Motivation
 Machine learning algorithms nowadays build up an integral part of products used by billions of users every day.
@@ -125,7 +168,8 @@ The Parameter Server provides three consistency models:
 
 The consistency model specifies how, and when, the different sub-gradients from the workers get combined to update the weights on the server.
 The three models form an order of strictness: Eventual Consistency is loose, Bounded Delay is medium, and Sequential Consistency is strict.  
-In the code, the consistency model is defined by the variable `maxVectorClockDelay` (in `ServerProcessor`).
+In the code, the consistency model is defined by the variable `maxVectorClockDelay` (in `ServerProcessor`). 
+Use the command line parameter `--consistency_model` for the `ServerAppRunner` to specify the consistency model.
 
 #### Sequential Consistency
 The server waits until it receives all sub-gradients of a specific iteration from the workers. Then it combines the sub-gradients and updates the weights.
@@ -134,7 +178,7 @@ All worker are always in the same iteration.
 
 This model is prone to the straggler problem.
 
-To use this model, set `maxVectorClockDelay` to `0`.
+To use this model, set `--consistency_model` to `0`.
 
 #### Eventual Consistency
 The server updates the weights as soon as it receives sub-gradients from a worker. The new weights are only pushed to the worker which caused the update.
@@ -144,16 +188,16 @@ Workers can be in different iterations.
 This model is not prone to the straggler problem because workers do not need to wait for other workers. 
 However, some workers might be many iterations ahead of other worker, which might be undesirable.
 
-To use this model, set `maxVectorClockDelay` to `MAX_DELAY_INFINITY` (this is a constant for `-1`).
+To use this model, set `--consistency_model` to `-1`.
 
 #### Bounded Delay
 This model is a trade-off between the previous two consistency models. Similar to the Eventual Consistency model, workers can be in different iteration.
-However, The difference between the furthest and the slowest worker must never exceed the threshold of `maxVectorClockDelay`.
+However, The difference between the furthest and the slowest worker must never exceed the threshold of `--consistency_model`.
 If the gap between the furthest and the slowest worker gets too big, the furthest worker has to wait until the gap is lower than the threshold again.
 
 This model can be used to simulate the other two consistency models.
 
-To use this model, set `maxVectorClockDelay` to an number >0. This variable is the maximum allowed gap between the furthest and the slowest worker.
+To use this model, set `--consistency_model` to an number >0. This variable is the maximum allowed gap between the furthest and the slowest worker.
 
 
 ## 6 Evaluation
@@ -232,3 +276,7 @@ Because the model has only seen a small portion of the dataset when we stopped t
 [5] Stanford Network Analysis Project. _Amazon Fine Food Reviews_ *URL:* <https://www.kaggle.com/snap/amazon-fine-food-reviews>
 
 [6] Amazon DataWig <https://github.com/awslabs/datawig>
+
+[7] The trainings dataset that we have used: <https://s3.eu-central-1.amazonaws.com/de.hpi.datastreams.parameter-server/reviews-embedded_equal-distribution_train.csv>
+
+[8] The test dataset that we have used: <https://s3.eu-central-1.amazonaws.com/de.hpi.datastreams.parameter-server/reviews-embedded_equal-distribution_test.csv>
