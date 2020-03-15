@@ -84,8 +84,4 @@ public abstract class BaseKafkaApp implements Callable<Void> {
 
     public abstract String APPLICATION_ID_CONFIG();
 
-    protected enum DATASET {
-        TRAIN,
-        TEST
-    }
 }

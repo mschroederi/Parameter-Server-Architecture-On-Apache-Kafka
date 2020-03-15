@@ -77,7 +77,7 @@ class WorkerAppRunner {
         if (logToFile) {
             PrintStream fileOut = new PrintStream("./logs-worker.csv");
             System.setOut(fileOut);
-            System.out.println("timestamp;partition;vectorClock;loss;fMeasure;accuracy"); // write the schema of the evaluation output as the first line
+            System.out.println("timestamp;partition;vectorClock;loss;fMeasure;accuracy;numTuplesSeen");  // write the schema of the evaluation output as the first line
         }
 
         // Sleep in order to be sure that the ServerApp has already sent some training data

@@ -13,7 +13,7 @@ runWorker() {
 
 runServer() {
   sleep 10s
-  java -cp build/libs/kafka-ps-all.jar de.hpi.datastreams.apps.ServerAppRunner -l
+  java -cp build/libs/kafka-ps-all.jar de.hpi.datastreams.apps.ServerAppRunner -l -p 200
 }
 
 runWorker & runServer & wait
