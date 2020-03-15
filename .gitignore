@@ -15,3 +15,5 @@ gradlew.bat
 /data/reviews_embedded_test.csv
 /data/reviews_embedded_train.csv
 /data/score/
+/data/train.csv
+/data/test.csv

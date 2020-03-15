@@ -37,10 +37,8 @@ public abstract class BaseKafkaApp implements Callable<Void> {
     public final static String WEIGHTS_STORE = "WEIGHTS_STORE";
 
 
-    final static String TRAINING_DATA_FILE_PATH = "./data/train.csv";
-    final static String TRAINING_DATA_DEFAULT_URL = "https://s3.eu-central-1.amazonaws.com/de.hpi.datastreams.parameter-server/reviews-embedded_equal-distribution_train.csv";
-    final static String TEST_DATA_FILE_PATH = "./data/test.csv";
-    final static String TEST_DATA_DEFAULT_URL = "https://s3.eu-central-1.amazonaws.com/de.hpi.datastreams.parameter-server/reviews-embedded_equal-distribution_test.csv";
+    final static String TRAINING_DATA_FILE_PATH_DEFAULT = "./data/train.csv";
+    final static String TEST_DATA_FILE_PATH_DEFAULT = "./data/test.csv";
 
     private String host = "localhost";
     private int port = 8070;
@@ -94,30 +92,5 @@ public abstract class BaseKafkaApp implements Callable<Void> {
     protected enum DATASET {
         TRAIN,
         TEST
-    }
-
-    static void download(DATASET dataset, String url) throws IOException {
-        String fileName = "";
-        switch (dataset) {
-            case TRAIN:
-                fileName = "train.csv";
-                break;
-            case TEST:
-                fileName = "test.csv";
-                break;
-        }
-
-        InputStream in = new URL(url).openStream();
-        Files.copy(in, Paths.get("./data/" + fileName), StandardCopyOption.REPLACE_EXISTING);
-    }
-
-    static void downloadDatasetsIfNecessary(String trainingDataUrl, String testDataUrl) throws IOException {
-        // Check whether the CSV files containing the testing & training data exists
-        // If not, download them into the expected file within the data folder
-        File trainingData = new File("./data/train.csv");
-        File testingData = new File("./data/test.csv");
-        new File("./data").mkdirs();
-        if (!trainingData.exists()) BaseKafkaApp.download(BaseKafkaApp.DATASET.TRAIN, trainingDataUrl);
-        if (!testingData.exists()) BaseKafkaApp.download(BaseKafkaApp.DATASET.TEST, testDataUrl);
     }
 }

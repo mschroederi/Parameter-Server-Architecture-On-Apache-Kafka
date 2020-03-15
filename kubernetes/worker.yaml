@@ -19,9 +19,5 @@ spec:
           image: 061371762025.dkr.ecr.us-east-1.amazonaws.com/kafka-streaming-parameter-server-worker
           workingDir: /app
           args:
-            - "--training"
-            - "https://s3.eu-central-1.amazonaws.com/de.hpi.datastreams.parameter-server/reviews-embedded_equal-distribution_train.csv"
-            - "--test"
-            - "https://s3.eu-central-1.amazonaws.com/de.hpi.datastreams.parameter-server/reviews-embedded_equal-distribution_test.csv"
             - "--remote"
             - "--verbose"
