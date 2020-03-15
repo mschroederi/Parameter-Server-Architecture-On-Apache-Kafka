@@ -3,6 +3,7 @@ package de.hpi.datastreams.processors;
 import de.hpi.datastreams.apps.WorkerApp;
 import de.hpi.datastreams.messages.*;
 import de.hpi.datastreams.ml.LogisticRegressionTaskSpark;
+import de.hpi.datastreams.ml.Metrics;
 import de.hpi.datastreams.producer.ProducerBuilder;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -77,15 +78,13 @@ public class WorkerTrainingProcessor
                 .calculateGradients(dataOnPartition);
 
         if (message.getVectorClock() % 1 == 0) {
-            MulticlassMetrics metrics = this.logisticRegressionTaskSpark.get(partitionKey).getMetrics();
+            Metrics metrics = this.logisticRegressionTaskSpark.get(partitionKey).getMetrics();
             System.out.println(String.format(
                     "%d;%d;%d;%s;%s;%s", new Date().getTime(),
                     Math.toIntExact(partitionKey), message.getVectorClock(),
                     this.logisticRegressionTaskSpark.get(partitionKey).getLoss(),
-//                    metrics.logLoss(1e-15),
-//                    metrics.hammingLoss(),
-                    metrics.weightedFMeasure(),
-                    metrics.accuracy()
+                    metrics.getF1(),
+                    metrics.getAccuracy()
             ));
         }
 

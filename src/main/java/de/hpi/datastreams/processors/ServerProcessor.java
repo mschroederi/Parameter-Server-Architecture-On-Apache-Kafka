@@ -31,7 +31,6 @@ public class ServerProcessor extends AbstractProcessor<Long, GradientMessage> {
 
     private ProcessorContext context;
 
-    //    private KeyValueStore<Long, SerializableHashMap> weights;
     private SerializableHashMap weights;
     private final Float learningRate = 1f / numWorkers;
     private Producer<Long, WeightsMessage> weightsMessageProducer;
@@ -49,7 +48,6 @@ public class ServerProcessor extends AbstractProcessor<Long, GradientMessage> {
         super.init(context);
         this.context = context;
 
-//        this.weights = (KeyValueStore<Long, SerializableHashMap>) context.getStateStore(App.WEIGHTS_STORE);
         this.weights = new SerializableHashMap();
         this.weightsMessageProducer = ProducerBuilder.build("client-weightsMessageProducer-" + UUID.randomUUID().toString());
 
@@ -155,8 +153,8 @@ public class ServerProcessor extends AbstractProcessor<Long, GradientMessage> {
                     "%d;%d;%d;%s;%s;%s", new Date().getTime(),
                     Math.toIntExact(-1), message.getVectorClock(),
                     -1,
-                    this.lgTask.getMetrics().weightedFMeasure(),
-                    this.lgTask.getMetrics().accuracy()
+                    this.lgTask.getMetrics().getF1(),
+                    this.lgTask.getMetrics().getAccuracy()
             ));
         }
 
@@ -183,11 +181,7 @@ public class ServerProcessor extends AbstractProcessor<Long, GradientMessage> {
      */
     private void setInitialWeights() {
         this.lgTask.initialize(true);
-
         this.weights = this.lgTask.getWeights();
-
-        // All weights are stored on node 0
-//        this.weights.put(0L, lgTask.getWeights());
     }
 
     /**
@@ -198,12 +192,6 @@ public class ServerProcessor extends AbstractProcessor<Long, GradientMessage> {
     private KeyRange getKeyRange() {
         Integer smallestKey = 0;
         Integer largestKey = 0;
-
-//        if (!this.weights.get(0L).isEmpty()) {
-//            HashMap<Integer, Float> weightsMap = this.weights.get(0L);
-//            smallestKey = Collections.min(weightsMap.keySet());
-//            largestKey = Collections.max(weightsMap.keySet());
-//        }
 
         if (!this.weights.isEmpty()) {
             smallestKey = Collections.min(this.weights.keySet());
