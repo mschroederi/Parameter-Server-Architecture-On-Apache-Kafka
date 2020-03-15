@@ -1,8 +1,5 @@
 # Parameter Server on Apache Kafka
 
-[TODO: make sure to only use a single ML lib]  
-[TODO: decide on name for 'WorkerSamplingProcessor' / 'InputDataProcessor']
-
 ## 1 Abstract
 The parameter server architecture is a commonly used approach to synchronize workers during distributed machine learning (ML) tasks.
 We adapted this architecture to our needs and implemented it using Apache Kafka's streams platform.  
