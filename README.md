@@ -157,8 +157,6 @@ To use this model, set `maxVectorClockDelay` to an number >0. This variable is t
 
 
 ## 6 Evaluation
-- time
-- model performance
 
 ### The Dataset
 We use Amazon's fine food reviews dataset as the basis for the evaluation of our implementation [5].
@@ -234,11 +232,16 @@ The higher the event frequency the higher the losses on the training data which 
 ![Comparison of Loss across different Event Frequencies](docs/plots/worker-comparison_event-frequency_loss.png)
 
 
-
 ### Consistency Models
+[TODO]
 
 
 ## 7 Conclusion & Future Work
+We represent an implementation of the well-known parameter server approach that is used to scale distributed machine learning tasks.
+For this research prototype the general architecture was simplified and adopted to KafkaStreams.
+Furthermore, we evaluated the implementation's robustness and its configuration parameters.
+
+Future work might include a compression of the transmitted messages as well as an distribution of the server's tasks onto multiple nodes.
 
 ## References
 [1] Li, Mu, et al. "Scaling distributed machine learning with the parameter server." 11th USENIX Symposium on Operating Systems Design and Implementation (OSDI 14). 2014.
