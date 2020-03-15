@@ -1,8 +1,6 @@
 package de.hpi.datastreams.apps;
 
 import de.hpi.datastreams.serialization.JSONSerde;
-import org.apache.kafka.clients.admin.AdminClient;
-import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.Serdes;
@@ -10,12 +8,15 @@ import org.apache.kafka.streams.KafkaStreams;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.Topology;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.Properties;
 import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
 
 import static org.apache.kafka.common.requests.DeleteAclsResponse.log;
 
@@ -34,6 +35,9 @@ public abstract class BaseKafkaApp implements Callable<Void> {
     public final static String PREDICTION_DATA_TOPIC = "PREDICTION_DATA_TOPIC";
     public final static String PREDICTION_OUTPUT_TOPIC = "PREDICTION_OUTPUT_TOPIC";
     public final static String WEIGHTS_STORE = "WEIGHTS_STORE";
+
+    final static String TRAINING_DATA_FILE_PATH = "./data/reviews-embedded_equal-distribution_train.csv";
+    final static String TESTING_DATA_FILE_PATH = "./data/reviews-embedded_equal-distribution_test.csv";
 
     private String host = "localhost";
     private int port = 8070;
@@ -83,4 +87,34 @@ public abstract class BaseKafkaApp implements Callable<Void> {
     public abstract Topology getTopology(Properties properties);
 
     public abstract String APPLICATION_ID_CONFIG();
+
+    protected enum DATASET {
+        TRAIN,
+        TEST
+    }
+
+    static void download(DATASET dataset, String url) throws IOException {
+        String fileName = "";
+        switch (dataset) {
+            case TRAIN:
+                fileName = "reviews-embedded_equal-distribution_train.csv";
+                break;
+            case TEST:
+                fileName = "reviews-embedded_equal-distribution_test.csv";
+                break;
+        }
+
+        InputStream in = new URL(url).openStream();
+        Files.copy(in, Paths.get("./data/" + fileName), StandardCopyOption.REPLACE_EXISTING);
+    }
+
+    static void downloadDatasetsIfNecessary(String trainingDataLink, String testDataLink) throws IOException {
+        // Check whether the CSV files containing the testing & training data exists
+        // If not, download them into the expected file within the data folder
+        File trainingData = new File(TRAINING_DATA_FILE_PATH);
+        File testingData = new File(TESTING_DATA_FILE_PATH);
+        new File("./data").mkdirs();
+        if (!trainingData.exists()) BaseKafkaApp.download(BaseKafkaApp.DATASET.TRAIN, trainingDataLink);
+        if (!testingData.exists()) BaseKafkaApp.download(BaseKafkaApp.DATASET.TEST, testDataLink);
+    }
 }

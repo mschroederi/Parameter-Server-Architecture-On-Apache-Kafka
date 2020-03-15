@@ -2,16 +2,11 @@ package de.hpi.datastreams.apps;
 
 import de.hpi.datastreams.producer.CsvProducer;
 import org.apache.commons.cli.*;
-import org.apache.commons.io.FileUtils;
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
-import org.apache.spark.sql.sources.In;
 
-import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.PrintStream;
-import java.net.URL;
+
+import static de.hpi.datastreams.apps.BaseKafkaApp.TESTING_DATA_FILE_PATH;
+import static de.hpi.datastreams.apps.BaseKafkaApp.TRAINING_DATA_FILE_PATH;
 
 
 class ServerAppRunner {
@@ -51,6 +46,7 @@ class ServerAppRunner {
             System.exit(0);
         }
 
+
         if(cmd.getArgs().length > 0){
             // There are args that could not be associated with a existing parameter
             HelpFormatter formatter = new HelpFormatter();
@@ -59,9 +55,9 @@ class ServerAppRunner {
         }
 
         // compute the arguments
-        String trainingDataFile = cmd.getOptionValue("training_data_link"); // TODO: use the link to download file
-        String testDataFile = cmd.getOptionValue("test_data_link"); // TODO: use the link to download the file
-        boolean usePrediction = false;  // TODO
+        String trainingDataLink = cmd.getOptionValue("training_data_link");
+        String testDataLink = cmd.getOptionValue("test_data_link");
+        boolean usePrediction = false;
         int consistencyModel = Integer.parseInt(cmd.getOptionValue("consistency_model", "0"));
         int producerTimePerEvent = Integer.parseInt(cmd.getOptionValue("producer_time_per_event", "200"));
         boolean verbose = cmd.hasOption("verbose");
@@ -72,8 +68,8 @@ class ServerAppRunner {
         if(verbose){
             System.out.println();
             System.out.println("Used parameter:");
-            System.out.println("    training_data_link: " + trainingDataFile);
-            System.out.println("    test_data_link: " + testDataFile);
+            System.out.println("    training_data_link: " + trainingDataLink);
+            System.out.println("    test_data_link: " + testDataLink);
             System.out.println("    consistency_model: " + consistencyModel);
             System.out.println("    producer_time_per_event: " + producerTimePerEvent);
             System.out.println("    broker address: " + broker);
@@ -81,16 +77,16 @@ class ServerAppRunner {
         }
 
 
-        CsvProducer inputDataProducer;
-        CsvProducer predictionDataProducer;
+        ServerApp.downloadDatasetsIfNecessary(trainingDataLink, testDataLink);
+
 
         System.out.println("timestamp;partition;vectorClock;loss;fMeasure;accuracy");
 
         BaseKafkaApp.brokers = broker;
-        ServerApp server = new ServerApp(consistencyModel, testDataFile);
+        ServerApp server = new ServerApp(consistencyModel, testDataLink);
 
-        predictionDataProducer = new CsvProducer(testDataFile, WorkerApp.PREDICTION_DATA_TOPIC, producerTimePerEvent);
-        inputDataProducer = new CsvProducer(trainingDataFile, WorkerApp.INPUT_DATA_TOPIC, producerTimePerEvent);
+        CsvProducer predictionDataProducer = new CsvProducer(TESTING_DATA_FILE_PATH, WorkerApp.PREDICTION_DATA_TOPIC, producerTimePerEvent);
+        CsvProducer inputDataProducer = new CsvProducer(TRAINING_DATA_FILE_PATH, WorkerApp.INPUT_DATA_TOPIC, producerTimePerEvent);
 
         try {
             // Generate stream data in background
@@ -101,7 +97,7 @@ class ServerAppRunner {
 
             server.call();
 
-            if(usePrediction) {
+            if (usePrediction) {
                 Thread.sleep(10000); // wait 10 sec before starting predictions
                 Thread predictionDataThread = predictionDataProducer.runProducerInBackground();
                 predictionDataThread.start();

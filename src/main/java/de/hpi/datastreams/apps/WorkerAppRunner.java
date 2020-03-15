@@ -1,24 +1,17 @@
 package de.hpi.datastreams.apps;
 
-import de.hpi.datastreams.producer.CsvProducer;
 import org.apache.commons.cli.*;
-import org.apache.commons.io.FileUtils;
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
-
-import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.PrintStream;
-import java.net.MalformedURLException;
-import java.net.URL;
+
+import static de.hpi.datastreams.apps.BaseKafkaApp.TESTING_DATA_FILE_PATH;
 
 
 class WorkerAppRunner {
-    public static void main(String[] args) throws InterruptedException, ParseException {
+    public static void main(String[] args) throws InterruptedException, ParseException, IOException {
         // create options
         Options options = new Options();
 
+        Option option_training_data = new Option("training", "training_data_link", true, "[REQUIRED] The link to an csv file that is used as training data.");
         Option option_test_data = new Option("test", "test_data_link", true, "[REQUIRED] The link to an csv file that is used as test data (to compute statistics)");
         Option option_min_buffer = new Option("min", "min_buffer_size", true, "The minimum buffer size that stores the incoming events");
         Option option_max_buffer = new Option("max", "max_buffer_size", true, "The maximum buffer size that stores the incoming events");
@@ -28,9 +21,11 @@ class WorkerAppRunner {
         Option option_broker = new Option("r", "remote", false, "If disabled, 'localhost' is used as the IP for the broker");
 
         // mark required options
+        option_training_data.setRequired(true);
         option_test_data.setRequired(true);
 
-        options.addOption(option_test_data)
+        options.addOption(option_training_data)
+                .addOption(option_test_data)
                 .addOption(option_min_buffer)
                 .addOption(option_max_buffer)
                 .addOption(option_buffer_size_coefficient)
@@ -57,7 +52,8 @@ class WorkerAppRunner {
         }
 
         // compute the arguments
-        String testDataFile = cmd.getOptionValue("test_data_link"); // TODO: use the link to download the file
+        String trainingDataLink = cmd.getOptionValue("training_data_link");
+        String testDataLink = cmd.getOptionValue("test_data_link");
         int minBufferSize = Integer.parseInt(cmd.getOptionValue("min_buffer_size", "128"));
         int maxBufferSize = Integer.parseInt(cmd.getOptionValue("max_buffer_size", "1024"));
         float bufferSizeCoefficient = Float.parseFloat(cmd.getOptionValue("buffer_size_coefficient", "0.3"));
@@ -69,7 +65,8 @@ class WorkerAppRunner {
         if(verbose){
             System.out.println();
             System.out.println("Used parameter:");
-            System.out.println("    test_data_link: " + testDataFile);
+            System.out.println("    training_data_link: " + trainingDataLink);
+            System.out.println("    test_data_link: " + testDataLink);
             System.out.println("    min_buffer_size: " + minBufferSize);
             System.out.println("    max_buffer_size: " + maxBufferSize);
             System.out.println("    buffer_size_coefficient: " + bufferSizeCoefficient);
@@ -78,14 +75,14 @@ class WorkerAppRunner {
         }
 
 
+        WorkerApp.downloadDatasetsIfNecessary(trainingDataLink, testDataLink);
+
+        // Sleep in order to be sure that the ServerApp has already sent some training data
+        Thread.sleep(10000);
 
         System.out.println("timestamp;partition;vectorClock;loss;fMeasure;accuracy");
-
-        Thread.sleep(5000);
-
         BaseKafkaApp.brokers = broker;
-        WorkerApp worker = new WorkerApp(minBufferSize, maxBufferSize, bufferSizeCoefficient, testDataFile);
-
+        WorkerApp worker = new WorkerApp(minBufferSize, maxBufferSize, bufferSizeCoefficient, TESTING_DATA_FILE_PATH);
 
         try {
             worker.call();

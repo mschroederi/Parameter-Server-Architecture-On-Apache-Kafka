@@ -20,8 +20,8 @@ spec:
           workingDir: /app
           args:
             - "--training"
-            - "./mockData/small-sample/small_sample_reviews_embedded_training.csv"
+            - "https://s3.eu-central-1.amazonaws.com/de.hpi.datastreams.parameter-server/reviews-embedded_equal-distribution_train.csv"
             - "--test"
-            - "./mockData/small-sample/small_sample_reviews_embedded_test.csv"
+            - "https://s3.eu-central-1.amazonaws.com/de.hpi.datastreams.parameter-server/reviews-embedded_equal-distribution_test.csv"
             - "--remote"
             - "--verbose"
