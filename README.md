@@ -169,15 +169,30 @@ During the preparation we used a hash vectorizer with 1024 features to vectorize
 The ML task is a logistic regression where we want to predict the score the users assigned to their reviews.
 As a conclusion the dataset contains five different labels.
 In the original dataset the labels had a strong bias, as the label `5` occurred way more often than the other labels.
-We decided to remove reviews until we get to equally distributed labels.
+We decided to remove reviews until we have a maximum of 20,000 tuples per label.
+The final result can be seen below.
 
 ![Score Distribution in Evaluation Dataset](docs/fine-food-reviews_score_distribution.png)
 
 ### Ground Truth Algorithm
-- training using Spark
+Using a python logistic regression implementation we achieved the following result on the test dataset.
 
-### One partition vs multiple partitions
-- difference in model's quality
+|              | precision | recall | f1-score | support |
+|--------------|-----------|--------|----------|---------|
+|              |           |        |          |         |
+| 1            | 0.55      | 0.62   | 0.58     | 1038    |
+| 2            | 0.38      | 0.29   | 0.33     | 741     |
+| 3            | 0.43      | 0.48   | 0.46     | 1041    |
+| 4            | 0.39      | 0.50   | 0.44     | 1024    |
+| 5            | 0.60      | 0.41   | 0.49     | 1033    |
+|              |           |        |          |         |
+| micro avg    | 0.47      | 0.47   | 0.47     | 4877    |
+| macro avg    | 0.47      | 0.46   | 0.46     | 4877    |
+| weighted avg | 0.48      | 0.47   | 0.47     | 4877    |
+
+We expect the result of our streaming application to be worse because we are only capable of looking at a limited number of tuples at each time point and thereby slowly 'forget' tuples that appeared in the past.
+
+### Parameter Server using a Single Worker
 
 ### Event Frequency
 
