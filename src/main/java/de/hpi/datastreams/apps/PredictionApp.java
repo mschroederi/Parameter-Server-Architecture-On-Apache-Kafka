@@ -18,6 +18,12 @@ import java.util.Properties;
 
 public class PredictionApp extends BaseKafkaApp {
 
+    private String testDataFilePath;
+
+    public PredictionApp(String testDataFilePath){
+        this.testDataFilePath = testDataFilePath;
+    }
+
     public PredictionApp() {
         Logger.getLogger("org").setLevel(Level.OFF);
     }
@@ -27,7 +33,7 @@ public class PredictionApp extends BaseKafkaApp {
 
         return new Topology()
                 .addSource("prediction-source", PREDICTION_DATA_TOPIC)
-                .addProcessor("PredictionProcessor", PredictionProcessor::new, "prediction-source")
+                .addProcessor("PredictionProcessor", () -> new PredictionProcessor(this.testDataFilePath), "prediction-source")
 
                 .addStateStore(Stores.keyValueStoreBuilder(
                         Stores.inMemoryKeyValueStore(WEIGHTS_STORE),

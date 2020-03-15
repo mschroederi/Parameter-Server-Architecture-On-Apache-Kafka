@@ -23,11 +23,13 @@ public class CsvProducer {
     private Producer<Long, LabeledData> producer;
     private String csvPath;
     private String topicName;
+    private int waitTimePerEvent;
 
-    public CsvProducer(String csvPath, String topicName) {
+    public CsvProducer(String csvPath, String topicName, int waitTimePerEvent) {
         this.csvPath = csvPath;
         this.topicName = topicName;
         this.producer = ProducerBuilder.build("client-dataMessageProducer-" + UUID.randomUUID().toString());
+        this.waitTimePerEvent = waitTimePerEvent;
     }
 
     public void runProducer(Boolean hasHeader) throws IOException {
@@ -72,7 +74,7 @@ public class CsvProducer {
 
             if (rowCount >= 4 * 128) {
                 try {
-                    Thread.sleep(200);
+                    Thread.sleep(this.waitTimePerEvent);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }

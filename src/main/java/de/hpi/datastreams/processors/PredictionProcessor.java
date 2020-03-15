@@ -19,13 +19,18 @@ public class PredictionProcessor extends AbstractProcessor<Long, LabeledData> {
     private KeyValueStore<Long, SerializableHashMap> weights;
     private Producer<Long, Float> predictionMessageProducer;
     LogisticRegressionTaskSpark logisticRegressionTaskSpark;
+    private String testDataFilePath;
+
+    public PredictionProcessor(String testDataFilePath){
+        this.testDataFilePath = testDataFilePath;
+    }
 
     @Override
     public void init(ProcessorContext context) {
         super.init(context);
         this.weights = (KeyValueStore<Long, SerializableHashMap>) context.getStateStore(WorkerApp.WEIGHTS_STORE);
         this.predictionMessageProducer = ProducerBuilder.buildFloatValue("predictionProducer-" + UUID.randomUUID().toString());
-        logisticRegressionTaskSpark = new LogisticRegressionTaskSpark();
+        logisticRegressionTaskSpark = new LogisticRegressionTaskSpark(this.testDataFilePath);
     }
 
     @Override

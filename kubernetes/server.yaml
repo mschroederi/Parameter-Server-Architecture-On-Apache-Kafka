@@ -18,3 +18,10 @@ spec:
         - name: parameter-server-server
           image: 061371762025.dkr.ecr.us-east-1.amazonaws.com/kafka-streaming-parameter-server
           workingDir: /app
+          args:
+            - "--training"
+            - "./mockData/small-sample/small_sample_reviews_embedded_training.csv"
+            - "--test"
+            - "./mockData/small-sample/small_sample_reviews_embedded_test.csv"
+            - "--remote"
+            - "--verbose"

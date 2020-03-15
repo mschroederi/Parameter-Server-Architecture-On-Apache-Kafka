@@ -19,4 +19,4 @@ COPY mockData mockData
 COPY --from=build /app/build build
 RUN ls ./build/libs/
 
-CMD ["java", "-cp", "build/libs/app-all.jar", "de.hpi.datastreams.apps.WorkerAppRunner"]
+ENTRYPOINT ["java", "-cp", "build/libs/app-all.jar", "de.hpi.datastreams.apps.WorkerAppRunner"]

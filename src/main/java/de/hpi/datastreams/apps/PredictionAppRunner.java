@@ -20,7 +20,7 @@ class PredictionAppRunner {
         Logger.getLogger("org").setLevel(Level.OFF);
         Logger.getLogger("akka").setLevel(Level.OFF);
 
-        PredictionApp predictor = new PredictionApp();
+        PredictionApp predictor = new PredictionApp(""); // TODO
 
         try {
             // Predict output to the data in the PREDICTION_DATA_TOPIC, using the weights from the server

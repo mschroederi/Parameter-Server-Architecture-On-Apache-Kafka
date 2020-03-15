@@ -6,6 +6,7 @@ import de.hpi.datastreams.messages.KeyRange;
 import de.hpi.datastreams.messages.SerializableHashMap;
 import de.hpi.datastreams.messages.WeightsMessage;
 import de.hpi.datastreams.ml.LogisticRegressionTaskSpark;
+import de.hpi.datastreams.ml.LogisticRegressionTaskSpark;
 import de.hpi.datastreams.producer.ProducerBuilder;
 import org.apache.commons.lang.math.LongRange;
 import org.apache.kafka.clients.producer.Producer;
@@ -35,13 +36,18 @@ public class ServerProcessor extends AbstractProcessor<Long, GradientMessage> {
     private final Float learningRate = 1f / numWorkers;
     private Producer<Long, WeightsMessage> weightsMessageProducer;
 
-    LogisticRegressionTaskSpark lgTask = new LogisticRegressionTaskSpark();
+    LogisticRegressionTaskSpark lgTask;
     private MessageTracker messageTracker = new MessageTracker(WorkerApp.numWorkers);
 
     private Cancellable trainingLoopStarter;
 
     public static final int MAX_DELAY_INFINITY = -1;
-    private final Integer maxVectorClockDelay = 1;
+    private final Integer maxVectorClockDelay;
+
+    public ServerProcessor(int consistencyModel, String testDataFilePath) {
+        this.maxVectorClockDelay = consistencyModel;
+        this.lgTask = new LogisticRegressionTaskSpark(testDataFilePath);
+    }
 
     @Override
     public void init(ProcessorContext context) {

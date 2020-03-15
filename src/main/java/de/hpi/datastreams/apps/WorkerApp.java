@@ -28,10 +28,14 @@ public class WorkerApp extends BaseKafkaApp {
 
     private int minBufferSize;
     private int maxBufferSize;
+    private float bufferSizeCoefficient;
+    private String testDataFile;
 
-    public WorkerApp(int minBufferSize, int maxBufferSize) {
+    public WorkerApp(int minBufferSize, int maxBufferSize, float bufferSizeCoefficient, String testDataFile) {
         this.minBufferSize = minBufferSize;
         this.maxBufferSize = maxBufferSize;
+        this.bufferSizeCoefficient = bufferSizeCoefficient;
+        this.testDataFile = testDataFile;
 
         Logger.getLogger("org").setLevel(Level.OFF);
     }
@@ -39,23 +43,12 @@ public class WorkerApp extends BaseKafkaApp {
     @Override
     public Topology getTopology(Properties properties) {
 
-        /*
-        StreamsBuilder builder = new StreamsBuilder();
-        KStream<Long, LabeledData> input = builder.stream(INPUT_DATA_TOPIC);
-
-        // update state store
-        input
-                .process(() -> new WorkerSamplingProcessor(this.minBufferSize, this.maxBufferSize), INPUT_DATA_BUFFER)
-                .process(() -> new WorkerTrainingProcessor(this.maxBufferSize), INPUT_DATA_BUFFER);
-
-         */
-
         return new Topology()
                 .addSource("data-source", INPUT_DATA_TOPIC)
-                .addProcessor("SamplingProcessor", () -> new WorkerSamplingProcessor(this.minBufferSize, this.maxBufferSize), "data-source")
+                .addProcessor("SamplingProcessor", () -> new WorkerSamplingProcessor(this.minBufferSize, this.maxBufferSize, this.bufferSizeCoefficient), "data-source")
 
                 .addSource("weights-source", WEIGHTS_TOPIC)
-                .addProcessor("TrainingProcessor", () -> new WorkerTrainingProcessor(this.maxBufferSize), "weights-source")
+                .addProcessor("TrainingProcessor", () -> new WorkerTrainingProcessor(this.maxBufferSize, this.testDataFile), "weights-source")
 
                 .addStateStore(Stores.keyValueStoreBuilder(
                         Stores.inMemoryKeyValueStore(INPUT_DATA_BUFFER),

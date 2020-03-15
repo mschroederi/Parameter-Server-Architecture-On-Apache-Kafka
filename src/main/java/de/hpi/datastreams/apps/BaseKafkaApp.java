@@ -37,9 +37,7 @@ public abstract class BaseKafkaApp implements Callable<Void> {
 
     private String host = "localhost";
     private int port = 8070;
-    //public final static String brokers = "localhost:29092";
-    // "kafka-0" is the name of the pod that runs kafka in the cluster. The name can be used for DNS lookup
-    public final static String brokers = "kafka-0:9092";
+    public static String brokers = "localhost:29092";  // this might be changed, depending on the arguments
 
     @Override
     public Void call() {

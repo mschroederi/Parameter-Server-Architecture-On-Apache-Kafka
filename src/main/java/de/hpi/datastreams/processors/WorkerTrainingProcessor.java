@@ -28,11 +28,13 @@ public class WorkerTrainingProcessor
     private Producer<Long, GradientMessage> gradientMessageProducer;
     KeyValueStore<Long, LabeledDataWithAge> data;
     Map<Long, LogisticRegressionTaskSpark> logisticRegressionTaskSpark;
+    private String testDataFilePath;
 
     private int maxBufferSize;
 
-    public WorkerTrainingProcessor(int maxBufferSize) {
+    public WorkerTrainingProcessor(int maxBufferSize, String testDataFilePath) {
         this.maxBufferSize = maxBufferSize;
+        this.testDataFilePath = testDataFilePath;
     }
 
     @Override
@@ -47,8 +49,8 @@ public class WorkerTrainingProcessor
 
         this.logisticRegressionTaskSpark = new HashMap<>();
 
-        for (long partitionKey = 0L; partitionKey < WorkerApp.numWorkers; partitionKey++) { // TODO: why does each worker need a map of regressionTasks???
-            this.logisticRegressionTaskSpark.put(partitionKey, new LogisticRegressionTaskSpark());
+        for (long partitionKey = 0L; partitionKey < WorkerApp.numWorkers; partitionKey++) {
+            this.logisticRegressionTaskSpark.put(partitionKey, new LogisticRegressionTaskSpark(this.testDataFilePath));
         }
     }
 

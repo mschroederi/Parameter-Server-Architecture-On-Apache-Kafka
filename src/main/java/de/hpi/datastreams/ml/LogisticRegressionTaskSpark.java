@@ -46,6 +46,11 @@ public class LogisticRegressionTaskSpark {
     @Getter
     private Metrics metrics;
     private Dataset<Row> testData;
+    private String testDataFilePath;
+
+    public LogisticRegressionTaskSpark(String testDataFilePath) {
+        this.testDataFilePath = testDataFilePath;
+    }
 
 
     public void initialize(boolean randomlyInitializeWeights) {
@@ -80,8 +85,7 @@ public class LogisticRegressionTaskSpark {
                         .option("delimiter", ",")
                         .option("inferSchema", "true")
                         .option("header", "true")
-                        .load("./mockData/small-sample/small_sample_reviews_embedded_test.csv")
-                        //.load("./local_test_data.csv")
+                        .load(this.testDataFilePath)
         )
                 .select("features", "Score")
                 .toDF("features", "label")

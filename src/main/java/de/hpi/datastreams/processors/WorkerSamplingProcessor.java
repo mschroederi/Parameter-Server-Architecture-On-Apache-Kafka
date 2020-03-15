@@ -23,10 +23,12 @@ public class WorkerSamplingProcessor extends AbstractProcessor<Long, LabeledData
     private Long lastProcessedTime = null;
     private int maxBufferSize;
     private int minBufferSize;
+    private float bufferSizeCoefficient;
 
-    public WorkerSamplingProcessor(int minBufferSize, int maxBufferSize) {
+    public WorkerSamplingProcessor(int minBufferSize, int maxBufferSize, float bufferSizeCoefficient) {
         this.minBufferSize = minBufferSize;
         this.maxBufferSize = maxBufferSize;
+        this.bufferSizeCoefficient = bufferSizeCoefficient;
     }
 
     @Override
@@ -117,7 +119,7 @@ public class WorkerSamplingProcessor extends AbstractProcessor<Long, LabeledData
         double eventsPerMinute = 60000 / meanTimeDifference.orElse(1000);
 
         // This can be modified in order to use a different function for describing the relationship between number of events and buffer size
-        int calculatedBufferSize = (int) Math.round(0.3 * eventsPerMinute);
+        int calculatedBufferSize = (int) Math.round(this.bufferSizeCoefficient * eventsPerMinute);
         return Math.max(this.minBufferSize, Math.min(this.maxBufferSize, calculatedBufferSize));
     }
 
