@@ -198,19 +198,20 @@ Therefore, our evaluation will start with a single worker.
 | events per second | 2     | Event frequency the CSVProcuder sent tuples to the INPUT_DATA_TOPIC       |
 
 How the loss on the training data evolved can be seen below.
-There, one can clearly see that the our application was able to optimize its parameters to fit the training data quite nicely up to iteration 200.
-After that the loss increases again.
+There, one can clearly see that the our application was able to optimize its parameters to fit the training data quite nicely up to the point where it received more than 1,000 tuples.
+After that the loss increases quickly.
 This is caused by a training data distribution that changes over time.
-Please keep in mind that we evaluate a streaming application here with a limited number of tuples that are used as training data samples in the single iterations. 
-![Loss on Training Data using a Single Worker with 500 tps](docs/singleWorker_500tps_loss.png)
+Moreover, we evaluated the model with an event frequency of 5 tuples per second. 
+This results in a very fast exchange of tuples in the training data buffer.
+There's not much time for the model to fit its parameters to the new data.
+![Loss on Training Data using a Single Worker with 5 tps](docs/singleWorker_5tps_loss.png)
 
 The more meaningful plot is the one shown below.
 It displays the f1 score on the training data over time.
 As the test data does not change with the number of iteration we can compare the model performance over time here.
 By doing so we can conclude that the model constantly improves over time.
-Because the model has only seen a small portion of the dataset when we stopped the evaluation we also expect the result to be a little worse than the ground truth example above where the model was capable of scanning through the training data multiple times.
-![F1 Score on Test Data using a Single Worker with 500 tps](docs/singleWorker_500tps_f1.png)
-
+Because the model has only seen the first ~5,000 tuples of the dataset when we stopped the evaluation we also expect the result to be a little worse than the ground truth example above where the model was capable of scanning through the training data multiple times.
+![F1 Score on Test Data using a Single Worker with 5 tps](docs/singleWorker_5tps_f1.png)
 
 
 ### Event Frequency
