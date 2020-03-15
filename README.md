@@ -229,6 +229,7 @@ In order to evaluate the influence of the frequency our application received dat
 When we compare the F1 score of the trained model on the test data with respect to the event frequency we can clearly see a positive correlation between the events received per second and the f1 score on the test dataset.
 Compared to our first prototypes we were able to clearly minimize the influence of that parameter.
 Please see the following plot comparing the f1 scores over the aggregated number of tuples seen by the workers.
+(NOTE: the read line showing the f1 score of the model trained with 0.5 events/s ends at ~3,000 tuples seen, because we stopped the execution due to the already long running analysis.)
 ![Comparison of F1 Score across different Event Frequencies](docs/plots/worker-comparison_event-frequency_f1.png)
 
 We can explain the influence of the event frequency on the model's performance with the danger of overfitting on the training dataset when tuples the model trains on are exchanged too slowly in the `INPUT_DATA_BUFFER`.
