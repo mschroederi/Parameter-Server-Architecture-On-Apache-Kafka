@@ -179,7 +179,6 @@ Using a python logistic regression implementation we achieved the following resu
 
 |              | precision | recall | f1-score | support |
 |--------------|-----------|--------|----------|---------|
-|              |           |        |          |         |
 | 1            | 0.55      | 0.62   | 0.58     | 1038    |
 | 2            | 0.38      | 0.29   | 0.33     | 741     |
 | 3            | 0.43      | 0.48   | 0.46     | 1041    |
@@ -193,6 +192,29 @@ Using a python logistic regression implementation we achieved the following resu
 We expect the result of our streaming application to be worse because we are only capable of looking at a limited number of tuples at each time point and thereby slowly 'forget' tuples that appeared in the past.
 
 ### Parameter Server using a Single Worker
+We want to compare how the trained models perform with respect to the number of workers they were trained on.
+Therefore, our evaluation will start with a single worker.
+
+| parameter         | value | description                                                               |
+|-------------------|-------|---------------------------------------------------------------------------|
+| numWorkers        | 1     | The number of workers (i.e. partitions) the application was executed with |
+| events per second | 2     | Event frequency the CSVProcuder sent tuples to the INPUT_DATA_TOPIC       |
+
+How the loss on the training data evolved can be seen below.
+There, one can clearly see that the our application was able to optimize its parameters to fit the training data quite nicely up to iteration 200.
+After that the loss increases again.
+This is caused by a training data distribution that changes over time.
+Please keep in mind that we evaluate a streaming application here with a limited number of tuples that are used as training data samples in the single iterations. 
+![Loss on Training Data using a Single Worker with 500 tps](docs/singleWorker_500tps_loss.png)
+
+The more meaningful plot is the one shown below.
+It displays the f1 score on the training data over time.
+As the test data does not change with the number of iteration we can compare the model performance over time here.
+By doing so we can conclude that the model constantly improves over time.
+Because the model has only seen a small portion of the dataset when we stopped the evaluation we also expect the result to be a little worse than the ground truth example above where the model was capable of scanning through the training data multiple times.
+![F1 Score on Test Data using a Single Worker with 500 tps](docs/singleWorker_500tps_f1.png)
+
+
 
 ### Event Frequency
 
