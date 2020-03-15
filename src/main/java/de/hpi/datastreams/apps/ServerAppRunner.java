@@ -56,7 +56,6 @@ class ServerAppRunner {
         // compute the arguments
         String trainingDataFilePath = cmd.getOptionValue("training_data_file_path", TRAINING_DATA_FILE_PATH_DEFAULT);
         String testDataFilePath = cmd.getOptionValue("test_data_file_path", TEST_DATA_FILE_PATH_DEFAULT);
-        boolean usePrediction = false;
         int consistencyModel = Integer.parseInt(cmd.getOptionValue("consistency_model", "0"));
         int producerTimePerEvent = Integer.parseInt(cmd.getOptionValue("producer_time_per_event", "200"));
         boolean verbose = cmd.hasOption("verbose");
@@ -86,7 +85,6 @@ class ServerAppRunner {
         BaseKafkaApp.brokers = broker;
         ServerApp server = new ServerApp(consistencyModel, testDataFilePath);
 
-        CsvProducer predictionDataProducer = new CsvProducer(testDataFilePath, WorkerApp.PREDICTION_DATA_TOPIC, producerTimePerEvent);
         CsvProducer inputDataProducer = new CsvProducer(trainingDataFilePath, WorkerApp.INPUT_DATA_TOPIC, producerTimePerEvent);
 
         try {
@@ -97,16 +95,7 @@ class ServerAppRunner {
             Thread.sleep(20000);
 
             server.call();
-
-            if (usePrediction) {
-                Thread.sleep(10000); // wait 10 sec before starting predictions
-                Thread predictionDataThread = predictionDataProducer.runProducerInBackground();
-                predictionDataThread.start();
-                predictionDataThread.join();
-            }
-
             inputDataThread.join();
-
         } catch (Exception e) {
             e.printStackTrace();
         }

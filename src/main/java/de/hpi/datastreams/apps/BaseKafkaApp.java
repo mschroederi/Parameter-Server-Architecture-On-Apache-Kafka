@@ -32,11 +32,6 @@ public abstract class BaseKafkaApp implements Callable<Void> {
     public final static String WEIGHTS_TOPIC = "WEIGHTS_TOPIC";
     public final static Integer WEIGHTS_TOPIC_NUM_PARTITIONS = numWorkers;
 
-    public final static String PREDICTION_DATA_TOPIC = "PREDICTION_DATA_TOPIC";
-    public final static String PREDICTION_OUTPUT_TOPIC = "PREDICTION_OUTPUT_TOPIC";
-    public final static String WEIGHTS_STORE = "WEIGHTS_STORE";
-
-
     final static String TRAINING_DATA_FILE_PATH_DEFAULT = "./data/train.csv";
     final static String TEST_DATA_FILE_PATH_DEFAULT = "./data/test.csv";
 
