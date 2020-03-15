@@ -27,10 +27,11 @@ If you do so you can continue with the following steps:
 1. _(Optionally)_ If you haven't done it yet, make sure you navigate into the project's root folder.
 2. Build the project using Gradle `gadle build`
 3. Open a new terminal window within the current location and execute `cd ./dev && docker-compose up`
-4. In a new terminal at the current location execute `java -cp build/libs/kafka-ps-all.jar de.hpi.datastreams.apps.ServerAppRunner`.
-5. In a new terminal at the current location execute  `java -cp build/libs/kafka-ps-all.jar de.hpi.datastreams.apps.WorkerAppRunner`.
+4. In a new terminal at the current location execute first `chmod u+x run.sh` and then `./run.sh`.
 
-Congratulations, you started the parameter server on Apache Kafka and are now training a logistic regression with one of our sample datasets. 🎉
+Congratulations, you started the parameter server on Apache Kafka and are now training a logistic regression with one of our sample datasets. 🎉  
+
+In order to tear down the kafka setup completely please execute `cd ./dev && docker-compose down -v`.
 
 ## 3 Motivation
 Machine learning algorithms nowadays build up an integral part of products used by billions of users every day.
@@ -75,8 +76,8 @@ As a consequence all workers send calculated sub-gradients to a single server in
 whereas the server needs to send weight updates to all the different partitions.
 The general parameter server architecture also distributes the server onto different nodes, 
 but we identified this as unnecessary overhead in order to fulfill the simple logistic regression task our implementation is optimized for.
-In general, we implemented the server as well as the worker as Kafka processors, but split each worker into two separate processors (InputDataProcessor and WorkerTrainingProcessor).
-Whereas the _InputDataProcessor_ is responsible for managing the local data subsets the _WorkerTrainingProcessor_ is responsible for calculating the sub-gradients based on the data the _InputDataProcessor_ provides.
+In general, we implemented the server as well as the worker as Kafka processors, but split each worker into two separate processors (WorkerSamplingProcessor and WorkerTrainingProcessor).
+Whereas the _WorkerSamplingProcessor_ is responsible for managing the local data subsets the _WorkerTrainingProcessor_ is responsible for calculating the sub-gradients based on the data the _WorkerSamplingProcessor_ provides.
 
 ![Implementation on Kafka](docs/ParameterServerKafkaImplementationOverview.png)
 
@@ -88,13 +89,13 @@ By using round robin as the partitioning strategy we assure that all worker node
 Our setup requires a CSV file that contains encoded data, i.e. all features in the training data must be of numerical data type.
 The workers do not encode the data before using them for training.
 
-#### InputDataProcessor
-As mentioned above the _InputDataProcessor_ is one of two processors that take over the workers' tasks.
+#### WorkerSamplingProcessor
+As mentioned above the _WorkerSamplingProcessor_ is one of two processors that take over the workers' tasks.
 This one subscribes to the _INPUT_DATA_TOPIC_ to receive new training data and store them in a state store called _INPUT_DATA_BUFFER_.
 The buffer then contains the training data for the next training iteration of the worker.
 We had two requirements for the buffer. 
 First, it should support (theoretically) arbitrary large buffer sizes and second, it should dynamically adjust to the speed new training data comes in with as first tests indicated that the buffer size was critical to prevent under- and overfitting of the trained logistic regression model.
-In order to support those requirements the _InputDataProcessor_ reserves a key range in the _INPUT_DATA_BUFFER_ that could potentially fit the maximum allowed buffer size.
+In order to support those requirements the _WorkerSamplingProcessor_ reserves a key range in the _INPUT_DATA_BUFFER_ that could potentially fit the maximum allowed buffer size.
 At each of these keys we might store a single data tuple.
 The following procedure allows us to make sure the most recent training tuples are kept in the buffer while increasing, decreasing or keeping the buffer size as it is.
 Depending on the frequency new training data tuples are received we calculate a `targetBufferSize` which is a best guess of the optimal buffer size.  
@@ -103,7 +104,7 @@ II. If the current buffer size is equal to the `targetBufferSize`, we replace th
 III. If the current buffer size is larger than the `targetBufferSize`, we start deleting the oldest data tuples until we reach the `targetBufferSize` and similar to II replace the then oldest training data tuple with the new one.  
 
 #### WorkerTrainingProcessor
-Whereas the _InputDataProcessor_ is responsible for collecting new training data, the _WorkerTrainingProcessor_ computes gradients to submit them to the _ServerProcessor_.
+Whereas the _WorkerSamplingProcessor_ is responsible for collecting new training data, the _WorkerTrainingProcessor_ computes gradients to submit them to the _ServerProcessor_.
 After receiving a weight update via the _WEIGHTS_TOPIC_ this processor is subscribed to it starts calculating the gradients based on the current training data in the _INPUT_DATA_BUFFER_ state store.
 In order to do so, the _WorkerTrainingProcessor_ uses a logistic regression implementation in Spark's ML library.
 After the model's local copy was trained for one iteration the gradients are extracted and send to the _ServerProcessor_ via the topic called _GRADIENT_TOPIC_.
@@ -169,8 +170,8 @@ The ML task is a logistic regression where we want to predict the score the user
 As a conclusion the dataset contains five different labels.
 In the original dataset the labels had a strong bias, as the label `5` occurred way more often than the other labels.
 We decided to remove reviews until we get to equally distributed labels.
-- [TODO: insert histogram of `Score`]
-- [TODO: should we change the label frequencies? e.g. equally distributed?]
+
+![Score Distribution in Evaluation Dataset](docs/fine-food-reviews_score_distribution.png)
 
 ### Ground Truth Algorithm
 - training using Spark

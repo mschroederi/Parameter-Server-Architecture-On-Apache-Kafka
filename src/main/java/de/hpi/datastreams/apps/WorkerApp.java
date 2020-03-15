@@ -17,6 +17,7 @@ import org.apache.kafka.streams.state.Stores;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -60,5 +61,13 @@ public class WorkerApp extends BaseKafkaApp {
         return "parameter-server-worker";
     }
 
+
+    static void downloadTestDatasetIfNecessary(String testDataUrl) throws IOException {
+        // Check whether the CSV files containing the testing & training data exists
+        // If not, download them into the expected file within the data folder
+        File testingData = new File("./data/test.csv");
+        new File("./data").mkdirs();
+        if (!testingData.exists()) BaseKafkaApp.download(BaseKafkaApp.DATASET.TEST, testDataUrl);
+    }
 }
 

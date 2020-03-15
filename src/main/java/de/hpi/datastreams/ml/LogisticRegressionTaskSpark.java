@@ -205,7 +205,13 @@ public class LogisticRegressionTaskSpark {
         double[] newIntercepts = model.interceptVector().toArray();
         for (int j = 0; j < currentIntercept.length; j++) {
             float oldIntercept = (float) currentIntercept[j];
-            float newIntercept = (float) newIntercepts[j];
+
+            // Do not calculate a gradient for the current intercept if there is no such intercept value
+            // This can be caused by missing tuples for the label x in the current training batch
+            float newIntercept = oldIntercept;
+            if (j < newIntercepts.length) {
+                newIntercept = (float) newIntercepts[j];
+            }
 
             float gradient = newIntercept - oldIntercept;
             gradients.put(newWeights.length + j, gradient);

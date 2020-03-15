@@ -16,6 +16,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static de.hpi.datastreams.apps.BaseKafkaApp.numWorkers;
 import static de.hpi.datastreams.apps.WorkerApp.INPUT_DATA_NUM_PARTITIONS;
 
 public class CsvProducer {
@@ -72,7 +73,7 @@ public class CsvProducer {
 
             rowCount++;
 
-            if (rowCount >= 4 * 128) {
+            if (rowCount >= numWorkers * 128) {
                 try {
                     Thread.sleep(this.waitTimePerEvent);
                 } catch (InterruptedException e) {
