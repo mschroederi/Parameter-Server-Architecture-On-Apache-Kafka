@@ -11,7 +11,6 @@ import org.apache.kafka.streams.processor.AbstractProcessor;
 import org.apache.kafka.streams.processor.ProcessorContext;
 import org.apache.kafka.streams.state.KeyValueIterator;
 import org.apache.kafka.streams.state.KeyValueStore;
-import org.apache.spark.mllib.evaluation.MulticlassMetrics;
 
 import java.util.*;
 
@@ -79,16 +78,20 @@ public class WorkerTrainingProcessor
         SerializableHashMap gradients = this.logisticRegressionTaskSpark.get(partitionKey)
                 .calculateGradients(dataOnPartition);
 
-        if (message.getVectorClock() % 1 == 0) {
-            Metrics metrics = this.logisticRegressionTaskSpark.get(partitionKey).getMetrics();
-            System.out.println(String.format(
-                    "%d;%d;%d;%s;%s;%s", new Date().getTime(),
-                    Math.toIntExact(partitionKey), message.getVectorClock(),
-                    this.logisticRegressionTaskSpark.get(partitionKey).getLoss(),
-                    metrics.getF1(),
-                    metrics.getAccuracy()
-            ));
-        }
+        // Log model's performance
+        Metrics metrics = this.logisticRegressionTaskSpark.get(partitionKey).getMetrics();
+        final long numTuplesReceivedSoFar = dataOnPartition.stream()
+                .map(LabeledDataWithAge::getInsertionID)
+                .max(java.lang.Long::compareTo)
+                .orElse(0L);
+        System.out.println(String.format(
+                "%d;%d;%d;%s;%s;%s;%s", new Date().getTime(),
+                Math.toIntExact(partitionKey), message.getVectorClock(),
+                this.logisticRegressionTaskSpark.get(partitionKey).getLoss(),
+                metrics.getF1(),
+                metrics.getAccuracy(),
+                numTuplesReceivedSoFar
+        ));
 
         // Wrap gradients in GradientMessage and send gradients to the ServerProcessor
         GradientMessage gradientsMsg = new GradientMessage(message.getVectorClock(),

@@ -84,7 +84,7 @@ class WorkerAppRunner {
         if (logToFile) {
             PrintStream fileOut = new PrintStream("./logs-worker.csv");
             System.setOut(fileOut);
-            System.out.println("timestamp;partition;vectorClock;loss;fMeasure;accuracy");
+            System.out.println("timestamp;partition;vectorClock;loss;fMeasure;accuracy;numTuplesSeen");
         }
 
         WorkerApp.downloadTestDatasetIfNecessary(testDataUrl);

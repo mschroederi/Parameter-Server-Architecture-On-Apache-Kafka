@@ -114,8 +114,8 @@ public abstract class BaseKafkaApp implements Callable<Void> {
     static void downloadDatasetsIfNecessary(String trainingDataUrl, String testDataUrl) throws IOException {
         // Check whether the CSV files containing the testing & training data exists
         // If not, download them into the expected file within the data folder
-        File trainingData = new File("./data/train.csv");
-        File testingData = new File("./data/test.csv");
+        File trainingData = new File(TRAINING_DATA_FILE_PATH);
+        File testingData = new File(TEST_DATA_FILE_PATH);
         new File("./data").mkdirs();
         if (!trainingData.exists()) BaseKafkaApp.download(BaseKafkaApp.DATASET.TRAIN, trainingDataUrl);
         if (!testingData.exists()) BaseKafkaApp.download(BaseKafkaApp.DATASET.TEST, testDataUrl);
