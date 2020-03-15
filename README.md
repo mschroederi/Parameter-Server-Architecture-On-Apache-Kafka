@@ -221,12 +221,17 @@ In order to evaluate the influence of the frequency our application received dat
 | parameter         | value | description                                                               |
 |-------------------|-------|---------------------------------------------------------------------------|
 | numWorkers        | 4     | The number of workers (i.e. partitions) the application was executed with |
-| events per second | 0.5/2.5/5/10| Event frequency each worker receives tuples with from the CSVProcuder      |
+| events per second | 0.5/ 2.5/ 5/ 10| Event frequency each worker receives tuples with from the CSVProcuder      |
 
-When we compare the F1 score of the trained model with respect to the event frequency we can clearly see that we can see a positive correlation between the per second received and the f1 score on the test dataset.
+When we compare the F1 score of the trained model with respect to the event frequency we can clearly see a positive correlation between the events received per second and the f1 score on the test dataset.
 But compared to our first prototypes we were able to clearly minimize the influence of that parameter.
-We explain this influence on the performance with the danger of overfitting on the training dataset when tuples the model trains on exchange too slowly.
+Please see a plot comparing the f1 scores over the aggregated number of tuples seen by the workers.
 ![Comparison of F1 Score across different Event Frequencies](docs/plots/worker-comparison_event-frequency_f1.png)
+
+We explain the influence of the event frequency on the model's performance with the danger of overfitting on the training dataset when tuples the model trains on are exchanged too slowly in the `INPUT_DATA_BUFFER`.
+This gets clear when looking at the plots below.
+The higher the event frequency the higher the losses on the training data which is an effect of the fact that the model is not able to completely fit its parameters on the training data.
+![Comparison of Loss across different Event Frequencies](docs/plots/worker-comparison_event-frequency_loss.png)
 
 
 
