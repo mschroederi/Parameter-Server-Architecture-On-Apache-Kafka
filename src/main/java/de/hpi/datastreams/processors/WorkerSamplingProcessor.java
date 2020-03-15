@@ -48,8 +48,6 @@ public class WorkerSamplingProcessor extends AbstractProcessor<Long, LabeledData
      */
     @Override
     public void process(Long partitionKey, LabeledData labeledData) {
-//        System.out.println("WorkerSamplingProcessor - Received dataMessage on partition " + partitionKey);
-
         this.handleNewProcessingTime();
 
         int targetBufferSize = this.calculateCurrentBufferSize();
@@ -132,7 +130,7 @@ public class WorkerSamplingProcessor extends AbstractProcessor<Long, LabeledData
         long currentTime = System.currentTimeMillis();
         this.processingTimes.addLast(currentTime - this.lastProcessedTime);
         this.lastProcessedTime = currentTime;
-        if (this.processingTimes.size() > PROCESSING_INTERVAL_SIZE) // TODO: consider making this time dependent and not size dependent
+        if (this.processingTimes.size() > PROCESSING_INTERVAL_SIZE)
             this.processingTimes.removeFirst();
     }
 }

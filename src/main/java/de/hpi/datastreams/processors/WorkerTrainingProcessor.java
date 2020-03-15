@@ -63,8 +63,6 @@ public class WorkerTrainingProcessor
     @Override
     public void process(Long partitionKey, WeightsMessage message) {
 
-//         System.out.println("WorkerTrainingProcessor - Received weightsMessage on partition " + partitionKey);
-
         // If the received message is the first of its kind on a partition
         // the LogisticRegressionTaskSpark has not been initialized yet
         if (!this.logisticRegressionTaskSpark.get(partitionKey).isInitialized()) {
@@ -133,84 +131,5 @@ public class WorkerTrainingProcessor
 
         return dataOnPartition;
     }
-
-
-//    /**
-//     * Handles the waiting for new data to arrive. Once enough data was received
-//     * the training loop with the {@link ServerProcessor} will be started.
-//     *
-//     * @param timestamp
-//     */
-//    private void waitForTrainingData(long timestamp) {
-//        long partitionKey = this.context.taskId().partition;
-//
-//        KeyValueIterator<Long, MyArrayList<LabeledDataWithAge>> iterator =
-//                this.data.range(partitionKey, partitionKey);
-//
-//        // Wait for next iteration if there is still no data on the current partition
-//        if (!iterator.hasNext()) {
-//            System.out.println(String.format("waitForTrainingData on partition: %d - !hasNext()", partitionKey));
-//            return;
-//        }
-//
-//        if (!this.logisticRegressionTaskSpark.isInitialized()) {
-//            System.out.println(String.format("waitForTrainingData on partition: %d - !isInitialized()", partitionKey));
-//            return;
-//        }
-//
-//        MyArrayList<LabeledDataWithAge> dataOnCurrentPartition = iterator.next().value;
-//
-//        if (dataOnCurrentPartition.size() >= this.batchSize) {
-//            // Cancel waiting for training data once we received enough data
-//            this.trainingDataWaiter.cancel();
-//            // Commit the current processing progress
-//            this.context.commit();
-//
-//            /* Send an empty gradient message indicating
-//            that we want to have an update of the weights */
-////            GradientMessage emptyGradient = new GradientMessage(START_VC,
-////                    new KeyRange(0, 0), new HashMap<>(), partitionKey);
-////            this.sendGradients(emptyGradient);
-//
-//            System.out.println(String.format("Found enough data to start training. " +
-//                            "Asked ServerProcessor for new weights at %d on partition %d",
-//                    timestamp, partitionKey));
-//        }
-//    }
-//
-//    /**
-//     * Handles the deletion of data entries
-//     * that are older than {@link WorkerTrainingProcessor#maxAgeData}
-//     *
-//     * @param timestamp
-//     */
-//    private void deleteAgedData(long timestamp) {
-//        long partitionKey = this.context.taskId().partition;
-//
-//        KeyValueIterator<Long, MyArrayList<LabeledDataWithAge>> iterator =
-//                this.data.range(partitionKey, partitionKey);
-//
-//        // Wait for next iteration if there is no data on the current partition
-//        if (!iterator.hasNext()) {
-//            return;
-//        }
-//
-//        MyArrayList<LabeledDataWithAge> dataOnCurrentPartition = iterator.next().value;
-//
-//        int deletionCounter = 0;
-//        for (LabeledDataWithAge dataEntry : dataOnCurrentPartition.getData()) {
-//            if (dataEntry.getAge() > this.maxAgeData) {
-//                dataOnCurrentPartition.remove(dataEntry);
-//                deletionCounter++;
-//            }
-//        }
-//
-//        System.out.println(String.format("Deleted %d data entries due to aging. ", deletionCounter));
-//
-//        // Update the data store with the filtered data
-//        this.data.put(partitionKey, dataOnCurrentPartition);
-//        // Commit the current processing progress
-//        this.context.commit();
-//    }
 }
 

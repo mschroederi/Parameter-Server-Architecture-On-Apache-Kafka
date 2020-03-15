@@ -23,10 +23,6 @@ class WorkerAppRunner {
         Option option_broker = new Option("r", "remote", false, "If disabled, 'localhost' is used as the IP for the broker");
         Option option_logging = new Option("l", "logging", false, "If enabled, writes performance logs into ./logs-worker.csv");
 
-        // mark required options
-//        option_training_data.setRequired(true);
-//        option_test_data.setRequired(true);
-
         options
                 .addOption(option_test_data)
                 .addOption(option_min_buffer)

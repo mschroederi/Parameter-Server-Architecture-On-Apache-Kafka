@@ -44,7 +44,6 @@ public class CsvProducer {
 
         // Read csv file
         while ((row = csvReader.readLine()) != null) {
-            // TODO: remove
             String[] data = row.split(",");
             int length = data.length;
             assert length == LogisticRegressionTaskSpark.numFeatures + 1;
@@ -64,8 +63,6 @@ public class CsvProducer {
             // Send message into queue
             try {
                 RecordMetadata metadata = producer.send(record).get();
-//                System.out.println("Record sent with key " + rowCount + " to partition " + metadata.partition()
-//                        + " with offset " + metadata.offset());
             } catch (ExecutionException | InterruptedException e) {
                 System.out.println("Error in sending record");
                 System.out.println(e);
