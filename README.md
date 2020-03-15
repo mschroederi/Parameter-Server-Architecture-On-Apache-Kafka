@@ -195,7 +195,7 @@ Therefore, our evaluation will start with a single worker.
 | parameter         | value | description                                                               |
 |-------------------|-------|---------------------------------------------------------------------------|
 | numWorkers        | 1     | The number of workers (i.e. partitions) the application was executed with |
-| events per second | 2     | Event frequency the CSVProcuder sent tuples to the INPUT_DATA_TOPIC       |
+| events per second | 2     | Event frequency each worker receives tuples with from the CSVProcuder      |
 
 How the loss on the training data evolved can be seen below.
 There, one can clearly see that the our application was able to optimize its parameters to fit the training data quite nicely up to the point where it received more than 1,000 tuples.
@@ -204,17 +204,31 @@ This is caused by a training data distribution that changes over time.
 Moreover, we evaluated the model with an event frequency of 5 tuples per second. 
 This results in a very fast exchange of tuples in the training data buffer.
 There's not much time for the model to fit its parameters to the new data.
-![Loss on Training Data using a Single Worker with 5 tps](docs/singleWorker_5tps_loss.png)
+![Loss on Training Data using a Single Worker with 5 tps](docs/plots/singleWorker_5tps_loss.png)
 
 The more meaningful plot is the one shown below.
 It displays the f1 score on the training data over time.
 As the test data does not change with the number of iteration we can compare the model performance over time here.
 By doing so we can conclude that the model constantly improves over time.
 Because the model has only seen the first ~5,000 tuples of the dataset when we stopped the evaluation we also expect the result to be a little worse than the ground truth example above where the model was capable of scanning through the training data multiple times.
-![F1 Score on Test Data using a Single Worker with 5 tps](docs/singleWorker_5tps_f1.png)
+![F1 Score on Test Data using a Single Worker with 5 tps](docs/plots/singleWorker_5tps_f1.png)
 
 
 ### Event Frequency
+
+In order to evaluate the influence of the frequency our application received data tuples we decided to compare the event frequencies `0.5tps`, `2.5tps`, `5tps` and `10tps`.
+
+| parameter         | value | description                                                               |
+|-------------------|-------|---------------------------------------------------------------------------|
+| numWorkers        | 4     | The number of workers (i.e. partitions) the application was executed with |
+| events per second | 0.5/2.5/5/10| Event frequency each worker receives tuples with from the CSVProcuder      |
+
+When we compare the F1 score of the trained model with respect to the event frequency we can clearly see that we can see a positive correlation between the per second received and the f1 score on the test dataset.
+But compared to our first prototypes we were able to clearly minimize the influence of that parameter.
+We explain this influence on the performance with the danger of overfitting on the training dataset when tuples the model trains on exchange too slowly.
+![Comparison of F1 Score across different Event Frequencies](docs/plots/worker-comparison_event-frequency_f1.png)
+
+
 
 ### Consistency Models
 
