@@ -175,7 +175,7 @@ The final result can be seen below.
 ![Score Distribution in Evaluation Dataset](docs/fine-food-reviews_score_distribution.png)
 
 ### Ground Truth Algorithm
-Using a python logistic regression implementation we achieved the following result on the test dataset.
+Using a python logistic regression implementation [6] we achieved the following result on the test dataset.
 
 |              | precision | recall | f1-score | support |
 |--------------|-----------|--------|----------|---------|
@@ -233,3 +233,5 @@ Because the model has only seen a small portion of the dataset when we stopped t
 [4]  T. Chen, M. Li, Y. Li, M. Lin, N. Wang, M. Wang, T. Xiao, B. Xu, C. Zhang, and Z. Zhang. MXNet: A flexible and efficient machine learning library for heterogeneous distributed systems. In Proceedings of LearningSys, 2015. <https://www.cs.cmu.edu/~muli/file/mxnet-learning-sys.pdf>.
 
 [5] Stanford Network Analysis Project. _Amazon Fine Food Reviews_ *URL:* <https://www.kaggle.com/snap/amazon-fine-food-reviews>
+
+[6] Amazon DataWig <https://github.com/awslabs/datawig>
