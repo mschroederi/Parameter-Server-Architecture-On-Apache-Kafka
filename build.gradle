@@ -1,0 +1,66 @@
+buildscript {
+    repositories {
+        maven {
+            url "https://plugins.gradle.org/m2/"
+        }
+    }
+    dependencies {
+        classpath 'com.github.jengelman.gradle.plugins:shadow:5.0.0'
+    }
+}
+
+plugins {
+    id 'java'
+    id 'application'
+    id 'com.github.johnrengelman.shadow' version '5.0.0'
+    id 'org.openjfx.javafxplugin' version '0.0.8'
+}
+
+manifest {
+    attributes 'Main-Class': 'de.hpi.datastreams.apps.ServerAppRunner'
+}
+
+sourceCompatibility = 1.8
+
+group = 'de.hpi.datastreams'
+version = ''
+
+application {
+    mainClassName = 'de.hpi.datastreams.apps.ServerAppRunner'
+}
+
+repositories {
+    mavenCentral()
+    maven {
+        url "http://packages.confluent.io/maven/"
+    }
+}
+
+dependencies {
+    compile "org.slf4j:slf4j-simple:1.7.26"
+    compile "org.apache.kafka:kafka-streams:2.3.1"
+    compile "org.apache.kafka:kafka-clients:2.3.1"
+
+    implementation "org.projectlombok:lombok:1.18.10"
+    annotationProcessor 'org.projectlombok:lombok:1.18.10'
+
+    compile group: 'com.fasterxml.jackson.module', name: 'jackson-module-parameter-names', version : '2.10.0'
+
+    compile "io.confluent:monitoring-interceptors:5.3.1"
+
+    testCompile "org.apache.kafka:kafka-streams-test-utils:2.3.1"
+    testCompile "junit:junit:4.12"
+
+    compile group: 'org.apache.spark', name: 'spark-mllib_2.12', version: '3.0.0-preview2'
+    compile group: 'org.apache.spark', name: 'spark-core_2.12', version: '3.0.0-preview2'
+    compile group: 'org.apache.spark', name: 'spark-sql_2.12', version: '3.0.0-preview2'
+}
+
+javafx {
+    version = "13"
+    modules = [ 'javafx.controls', 'javafx.fxml' ]
+}
+
+shadowJar {
+    zip64 true
+}
