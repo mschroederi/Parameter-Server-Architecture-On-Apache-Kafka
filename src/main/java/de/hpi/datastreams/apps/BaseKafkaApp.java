@@ -8,6 +8,13 @@ import org.apache.kafka.streams.KafkaStreams;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.Topology;
 
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.Properties;
 import java.util.concurrent.Callable;
 
@@ -15,9 +22,22 @@ import static org.apache.kafka.common.requests.DeleteAclsResponse.log;
 
 public abstract class BaseKafkaApp implements Callable<Void> {
 
+    public final static int numWorkers = 4;
+
+    public final static String INPUT_DATA_TOPIC = "INPUT_DATA";
+    public final static Integer INPUT_DATA_NUM_PARTITIONS = numWorkers;
+    public final static String INPUT_DATA_BUFFER = "INPUT_DATA_BUFFER";
+
+    public final static String GRADIENTS_TOPIC = "GRADIENTS_TOPIC";
+    public final static String WEIGHTS_TOPIC = "WEIGHTS_TOPIC";
+    public final static Integer WEIGHTS_TOPIC_NUM_PARTITIONS = numWorkers;
+
+    final static String TRAINING_DATA_FILE_PATH_DEFAULT = "./data/train.csv";
+    final static String TEST_DATA_FILE_PATH_DEFAULT = "./data/test.csv";
+
     private String host = "localhost";
     private int port = 8070;
-    public final static String brokers = "localhost:29092";
+    public static String brokers = "localhost:29092";  // this might be changed, depending on the arguments
 
     @Override
     public Void call() {
@@ -63,4 +83,5 @@ public abstract class BaseKafkaApp implements Callable<Void> {
     public abstract Topology getTopology(Properties properties);
 
     public abstract String APPLICATION_ID_CONFIG();
+
 }

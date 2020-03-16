@@ -2,38 +2,37 @@ package de.hpi.datastreams.ml;
 
 import de.hpi.datastreams.messages.LabeledData;
 import de.hpi.datastreams.messages.LabeledDataWithAge;
-import de.hpi.datastreams.messages.MyArrayList;
 import de.hpi.datastreams.messages.SerializableHashMap;
 import lombok.Getter;
-import org.apache.spark.api.java.JavaPairRDD;
-import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.api.java.function.MapFunction;
 import org.apache.spark.ml.classification.LogisticRegression;
 import org.apache.spark.ml.classification.LogisticRegressionModel;
-import org.apache.spark.ml.linalg.Matrices;
-import org.apache.spark.ml.linalg.Matrix;
-import org.apache.spark.mllib.evaluation.MulticlassMetrics;
-import org.apache.spark.mllib.linalg.Vectors;
-import org.apache.spark.mllib.regression.LabeledPoint;
+import org.apache.spark.ml.feature.VectorAssembler;
+import org.apache.spark.ml.linalg.*;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.RowFactory;
 import org.apache.spark.sql.SparkSession;
+import org.apache.spark.sql.catalyst.encoders.ExpressionEncoder;
+import org.apache.spark.sql.catalyst.encoders.RowEncoder;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.Metadata;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
-import scala.Tuple2;
 
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.IntStream;
 
 public class LogisticRegressionTaskSpark {
 
     public static final int numFeatures = 1024;
     public static final int numClasses = 5;
+
+    private final int numMaxIter = 2;
 
     @Getter
     private SerializableHashMap weights = new SerializableHashMap();
@@ -45,7 +44,13 @@ public class LogisticRegressionTaskSpark {
     @Getter
     private Double loss = 1.0;
     @Getter
-    private MulticlassMetrics metrics;
+    private Metrics metrics;
+    private Dataset<Row> testData;
+    private String testDataFilePath;
+
+    public LogisticRegressionTaskSpark(String testDataFilePath) {
+        this.testDataFilePath = testDataFilePath;
+    }
 
 
     public void initialize(boolean randomlyInitializeWeights) {
@@ -68,6 +73,23 @@ public class LogisticRegressionTaskSpark {
                 .appName("WorkerTrainingProcessorMLTask")
                 .getOrCreate();
         this.sparkContext = JavaSparkContext.fromSparkContext(spark.sparkContext());
+
+        String[] inputCols = IntStream.range(0, 1024).mapToObj(String::valueOf).toArray(String[]::new);
+        VectorAssembler assembler = new VectorAssembler()
+                .setInputCols(inputCols)
+                .setOutputCol("features");
+
+        this.testData = assembler.transform(
+                this.spark.sqlContext().read()
+                        .format("com.databricks.spark.csv")
+                        .option("delimiter", ",")
+                        .option("inferSchema", "true")
+                        .option("header", "true")
+                        .load(this.testDataFilePath)
+        )
+                .select("features", "Score")
+                .toDF("features", "label")
+                .cache();
     }
 
     /**
@@ -117,13 +139,9 @@ public class LogisticRegressionTaskSpark {
         return interceptArr;
     }
 
-    public SerializableHashMap calculateGradients(MyArrayList<LabeledDataWithAge> dataToBeLearned, int numMaxIter) {
-
+    private SerializableHashMap calculateGradients(ArrayList<LabeledDataWithAge> dataToBeLearned, int numMaxIter) {
         // Requires initialization
         assert this.isInitialized;
-
-        // Increase age of consumed data
-        dataToBeLearned.forEach(LabeledDataWithAge::increaseAge);
 
         List<Row> localTraining = new ArrayList<>();
         dataToBeLearned.forEach((LabeledDataWithAge ld) -> {
@@ -140,22 +158,13 @@ public class LogisticRegressionTaskSpark {
                 values[i] = entry.getValue();
             }
 
-            localTraining.add(RowFactory.create(ld.getLabel(), Vectors.sparse(numFeatures, indices, values).asML()));
+            localTraining.add(RowFactory.create(ld.getLabel(), Vectors.sparse(numFeatures, indices, values)));
         });
 
-        Dataset<Row> data = this.spark.createDataFrame(localTraining, new StructType(new StructField[]{
+        Dataset<Row> training = this.spark.createDataFrame(localTraining, new StructType(new StructField[]{
                 new StructField("label", DataTypes.IntegerType, false, Metadata.empty()),
-                new StructField("features", org.apache.spark.ml.linalg.SQLDataTypes.VectorType(), false, Metadata.empty())
+                new StructField("features", SQLDataTypes.VectorType(), false, Metadata.empty())
         }));
-
-        Dataset<Row>[] splits = data.randomSplit(new double[]{0.7, 0.3}, 11L);
-        Dataset<Row> training = splits[0].cache();
-        JavaRDD<LabeledPoint> test = splits[1].toJavaRDD().map(row -> {
-            org.apache.spark.ml.linalg.SparseVector featuresSparse =
-                    (org.apache.spark.ml.linalg.SparseVector) row.get(row.fieldIndex("features"));
-            Integer label = (Integer) row.get(row.fieldIndex("label"));
-            return new LabeledPoint(label, org.apache.spark.mllib.linalg.Vectors.dense(featuresSparse.toDense().values()));
-        });
 
         // Create an initial model with the by the ParameterServer calculated weights
         double[] currentWeights = this.getWeightsAsArray();
@@ -163,7 +172,7 @@ public class LogisticRegressionTaskSpark {
 
         Matrix initialCoefficients = Matrices.dense(numClasses + 1, numFeatures, currentWeights);
         LogisticRegressionModel initialModel = new LogisticRegressionModel("model-uid",
-                initialCoefficients, org.apache.spark.ml.linalg.Vectors.dense(currentIntercept),
+                initialCoefficients, Vectors.dense(currentIntercept),
                 numClasses, true);
 
         // Train model starting from the initial model created above
@@ -174,15 +183,7 @@ public class LogisticRegressionTaskSpark {
                 .setInitialModel(initialModel)
                 .fit(training);
 
-        JavaPairRDD<Object, Object> predictionAndLabels = test.mapToPair(p -> {
-            double[] featureArr = p.features().toDense().values();
-            org.apache.spark.ml.linalg.Vector features = org.apache.spark.ml.linalg.Vectors.dense(featureArr);
-            return new Tuple2<>(model.predict(features), p.label());
-        });
-
-        // Get evaluation metrics.
-        MulticlassMetrics metrics = new MulticlassMetrics(predictionAndLabels.rdd());
-        this.metrics = metrics;
+        this.metrics = this.calculateEvaluationMetric(model);
 
         double[] localLossHistory = model.summary().objectiveHistory();
         this.loss = localLossHistory[localLossHistory.length - 1];
@@ -204,7 +205,13 @@ public class LogisticRegressionTaskSpark {
         double[] newIntercepts = model.interceptVector().toArray();
         for (int j = 0; j < currentIntercept.length; j++) {
             float oldIntercept = (float) currentIntercept[j];
-            float newIntercept = (float) newIntercepts[j];
+
+            // Do not calculate a gradient for the current intercept if there is no such intercept value
+            // This can be caused by missing tuples for the label x in the current training batch
+            float newIntercept = oldIntercept;
+            if (j < newIntercepts.length) {
+                newIntercept = (float) newIntercepts[j];
+            }
 
             float gradient = newIntercept - oldIntercept;
             gradients.put(newWeights.length + j, gradient);
@@ -213,14 +220,44 @@ public class LogisticRegressionTaskSpark {
         return gradients;
     }
 
+    public void calculateTestMetrics() {
+        // Create an initial model with the by the ParameterServer calculated weights
+        double[] currentWeights = this.getWeightsAsArray();
+        double[] currentIntercept = this.getInterceptAsArray();
+
+        Matrix initialCoefficients = Matrices.dense(numClasses + 1, numFeatures, currentWeights);
+        LogisticRegressionModel model = new LogisticRegressionModel("model-uid",
+                initialCoefficients, Vectors.dense(currentIntercept),
+                numClasses, true);
+
+        this.metrics = this.calculateEvaluationMetric(model);
+    }
+
+    private Metrics calculateEvaluationMetric(LogisticRegressionModel model) {
+        StructType structType = new StructType();
+        structType = structType.add("prediction", DataTypes.DoubleType, false);
+        structType = structType.add("label", DataTypes.DoubleType, false);
+        ExpressionEncoder<Row> encoder = RowEncoder.apply(structType);
+
+        Dataset<Row> predictionAndLabels = this.testData.map((MapFunction<Row, Row>) tuple -> {
+            Vector features = tuple.getAs(0);
+            Double prediction = model.predict(features);
+            Double label = Integer.valueOf(tuple.getInt(1)).doubleValue();
+            return RowFactory.create(prediction, label);
+        }, encoder);
+
+        // Get evaluation metrics.
+        return Metrics.from(predictionAndLabels);
+    }
+
     /**
      * Run ML model and return calculated gradients
      *
      * @param dataToBeLearned
      * @return
      */
-    public SerializableHashMap calculateGradients(MyArrayList<LabeledDataWithAge> dataToBeLearned) {
-        return this.calculateGradients(dataToBeLearned, 2);
+    public SerializableHashMap calculateGradients(ArrayList<LabeledDataWithAge> dataToBeLearned) {
+        return this.calculateGradients(dataToBeLearned, numMaxIter);
     }
 
     public float predict(LabeledData dataToBePredicted) {
@@ -233,8 +270,8 @@ public class LogisticRegressionTaskSpark {
             values[idx] = value;
         });
 
-        return (float) new LogisticRegressionModel("prediction-uid", org.apache.spark.ml.linalg.Vectors.dense(currentWeights), 0f)
-                .setThreshold(0.5) // if this is not set explicitly it fails
-                .predict(Vectors.sparse(size, indices, values).asML());
+        return (float) new LogisticRegressionModel("prediction-uid", Vectors.dense(currentWeights), 0f)
+                .setThreshold(0.5)
+                .predict(Vectors.sparse(size, indices, values));
     }
 }

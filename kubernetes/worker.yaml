@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: parameter-server-worker
+  labels:
+    app: parameter-server-worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: parameter-server-worker
+  template:
+    metadata:
+      labels:
+        app: parameter-server-worker
+    spec:
+      containers:
+        - name: parameter-server-worker
+          image: 061371762025.dkr.ecr.us-east-1.amazonaws.com/kafka-streaming-parameter-server-worker
+          workingDir: /app
+          args:
+            - "--remote"
+            - "--verbose"

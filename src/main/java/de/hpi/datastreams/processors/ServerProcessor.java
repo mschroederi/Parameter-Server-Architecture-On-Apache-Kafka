@@ -1,10 +1,11 @@
 package de.hpi.datastreams.processors;
 
-import de.hpi.datastreams.apps.App;
+import de.hpi.datastreams.apps.WorkerApp;
 import de.hpi.datastreams.messages.GradientMessage;
 import de.hpi.datastreams.messages.KeyRange;
 import de.hpi.datastreams.messages.SerializableHashMap;
 import de.hpi.datastreams.messages.WeightsMessage;
+import de.hpi.datastreams.ml.LogisticRegressionTaskSpark;
 import de.hpi.datastreams.ml.LogisticRegressionTaskSpark;
 import de.hpi.datastreams.producer.ProducerBuilder;
 import org.apache.commons.lang.math.LongRange;
@@ -14,7 +15,6 @@ import org.apache.kafka.streams.processor.AbstractProcessor;
 import org.apache.kafka.streams.processor.Cancellable;
 import org.apache.kafka.streams.processor.ProcessorContext;
 import org.apache.kafka.streams.processor.PunctuationType;
-import org.apache.kafka.streams.state.KeyValueStore;
 import scala.Tuple2;
 
 import java.util.*;
@@ -22,7 +22,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 
-import static de.hpi.datastreams.apps.App.*;
+import static de.hpi.datastreams.apps.WorkerApp.*;
 
 /**
  * Apache Kafka processor responsible for synchronizing the TrainingProcessors.
@@ -32,24 +32,28 @@ public class ServerProcessor extends AbstractProcessor<Long, GradientMessage> {
 
     private ProcessorContext context;
 
-    //    private KeyValueStore<Long, SerializableHashMap> weights;
     private SerializableHashMap weights;
     private final Float learningRate = 1f / numWorkers;
     private Producer<Long, WeightsMessage> weightsMessageProducer;
 
-    private MessageTracker messageTracker = new MessageTracker(App.numWorkers);
+    LogisticRegressionTaskSpark lgTask;
+    private MessageTracker messageTracker = new MessageTracker(WorkerApp.numWorkers);
 
     private Cancellable trainingLoopStarter;
 
     public static final int MAX_DELAY_INFINITY = -1;
-    private final Integer maxVectorClockDelay = 1;
+    private final Integer maxVectorClockDelay;
+
+    public ServerProcessor(int consistencyModel, String testDataFilePath) {
+        this.maxVectorClockDelay = consistencyModel;
+        this.lgTask = new LogisticRegressionTaskSpark(testDataFilePath);
+    }
 
     @Override
     public void init(ProcessorContext context) {
         super.init(context);
         this.context = context;
 
-//        this.weights = (KeyValueStore<Long, SerializableHashMap>) context.getStateStore(App.WEIGHTS_STORE);
         this.weights = new SerializableHashMap();
         this.weightsMessageProducer = ProducerBuilder.build("client-weightsMessageProducer-" + UUID.randomUUID().toString());
 
@@ -107,7 +111,7 @@ public class ServerProcessor extends AbstractProcessor<Long, GradientMessage> {
         else if (this.maxVectorClockDelay == 0
                 && this.messageTracker.hasReceivedAllMessages(receivedVC)) {
             List<Tuple2<Long, Integer>> allPartitionKeys =
-                    Arrays.stream(new LongRange(0L, App.numWorkers - 1).toArray())
+                    Arrays.stream(new LongRange(0L, WorkerApp.numWorkers - 1).toArray())
                             .boxed()
                             .map(partitionKey -> new Tuple2<>(partitionKey, receivedVC + 1))
                             .collect(Collectors.toList());
@@ -147,10 +151,17 @@ public class ServerProcessor extends AbstractProcessor<Long, GradientMessage> {
         });
 
         // Log weights every 10 vector clocks
-        if (message.getVectorClock() % 10 == 0 && message.getPartitionKey() == 0) {
-            // print the weights each 10 iterations
-//            System.out.println("Weights in iteration " + message.getVectorClock() + ":");
-//            this.weights.get(0L).forEach((key, value) -> System.out.println(key + " " + value));
+        if (message.getVectorClock() % 1 == 0 && message.getPartitionKey() == 0) {
+            this.lgTask.setWeights(this.weights);
+            this.lgTask.calculateTestMetrics();
+
+            System.out.println(String.format(
+                    "%d;%d;%d;%s;%s;%s", new Date().getTime(),
+                    Math.toIntExact(-1), message.getVectorClock(),
+                    -1,
+                    this.lgTask.getMetrics().getF1(),
+                    this.lgTask.getMetrics().getAccuracy()
+            ));
         }
 
         /*
@@ -175,13 +186,8 @@ public class ServerProcessor extends AbstractProcessor<Long, GradientMessage> {
      * Generates and stores the ML model's initial weights.
      */
     private void setInitialWeights() {
-        LogisticRegressionTaskSpark lgTask = new LogisticRegressionTaskSpark();
-        lgTask.initialize(true);
-
-        this.weights = lgTask.getWeights();
-
-        // All weights are stored on node 0
-//        this.weights.put(0L, lgTask.getWeights());
+        this.lgTask.initialize(true);
+        this.weights = this.lgTask.getWeights();
     }
 
     /**
@@ -192,12 +198,6 @@ public class ServerProcessor extends AbstractProcessor<Long, GradientMessage> {
     private KeyRange getKeyRange() {
         Integer smallestKey = 0;
         Integer largestKey = 0;
-
-//        if (!this.weights.get(0L).isEmpty()) {
-//            HashMap<Integer, Float> weightsMap = this.weights.get(0L);
-//            smallestKey = Collections.min(weightsMap.keySet());
-//            largestKey = Collections.max(weightsMap.keySet());
-//        }
 
         if (!this.weights.isEmpty()) {
             smallestKey = Collections.min(this.weights.keySet());

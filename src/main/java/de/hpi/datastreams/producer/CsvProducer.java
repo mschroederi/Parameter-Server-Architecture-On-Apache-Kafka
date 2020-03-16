@@ -16,18 +16,21 @@ import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static de.hpi.datastreams.apps.App.INPUT_DATA_NUM_PARTITIONS;
+import static de.hpi.datastreams.apps.BaseKafkaApp.numWorkers;
+import static de.hpi.datastreams.apps.WorkerApp.INPUT_DATA_NUM_PARTITIONS;
 
 public class CsvProducer {
 
     private Producer<Long, LabeledData> producer;
     private String csvPath;
     private String topicName;
+    private int waitTimePerEvent;
 
-    public CsvProducer(String csvPath, String topicName) {
+    public CsvProducer(String csvPath, String topicName, int waitTimePerEvent) {
         this.csvPath = csvPath;
         this.topicName = topicName;
         this.producer = ProducerBuilder.build("client-dataMessageProducer-" + UUID.randomUUID().toString());
+        this.waitTimePerEvent = waitTimePerEvent;
     }
 
     public void runProducer(Boolean hasHeader) throws IOException {
@@ -41,7 +44,6 @@ public class CsvProducer {
 
         // Read csv file
         while ((row = csvReader.readLine()) != null) {
-            // TODO: remove
             String[] data = row.split(",");
             int length = data.length;
             assert length == LogisticRegressionTaskSpark.numFeatures + 1;
@@ -61,8 +63,6 @@ public class CsvProducer {
             // Send message into queue
             try {
                 RecordMetadata metadata = producer.send(record).get();
-//                System.out.println("Record sent with key " + rowCount + " to partition " + metadata.partition()
-//                        + " with offset " + metadata.offset());
             } catch (ExecutionException | InterruptedException e) {
                 System.out.println("Error in sending record");
                 System.out.println(e);
@@ -70,11 +70,15 @@ public class CsvProducer {
 
             rowCount++;
 
-            if (rowCount >= 4 * 128) {
-                try {
-                    Thread.sleep(500);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
+            if (rowCount >= numWorkers * 128) {
+
+                int numTuplesPerSecond = 1000 / this.waitTimePerEvent;
+                if (rowCount % numTuplesPerSecond == 0) {
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
                 }
             }
         }
