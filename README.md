@@ -274,6 +274,7 @@ Compared to our first prototypes we were able to clearly minimize the influence 
 Please see the following plot comparing the f1 scores over the aggregated number of tuples seen by the workers.
 (NOTE: the red line showing the f1 score of the model trained with 0.5 events/s ends at ~3,000 tuples seen, because we stopped the execution due to the already long running analysis.)
 ![Comparison of F1 Score across different Event Frequencies](docs/plots/worker-comparison_event-frequency_f1.png)
+As one can see in the plot above, the model trained with an event frequency of 10 tuples per worker was able to reach f1 sores of ~0.45 which is very close to the performance of the above mentioned ground trough algorithm which reached a f1 score 0.47 on the test data.
 
 We can explain the influence of the event frequency on the model's performance with the danger of overfitting on the training dataset when tuples the model trains on are exchanged too slowly in the `INPUT_DATA_BUFFER`.
 This gets clear when looking at the plots below.
