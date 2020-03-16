@@ -1,9 +1,9 @@
 # Parameter Server on Apache Kafka
 
 ## 1 Abstract
-The parameter server architecture is a commonly used approach to synchronize workers during distributed machine learning (ML) tasks.
+The parameter server architecture is a commonly used approach to synchronize workers during distributed machine learning tasks.
 We adapted this architecture to our needs and implemented it using Apache Kafka's streams platform.  
-[TODO: What will be explained/ evaluated in the following sections?]
+The following documentation includes setup instructions, a detailed explanation of our parameter server implementation and an extensive evaluation of the trained models.
 
 ## 2 Getting Started
 
@@ -31,7 +31,7 @@ If you do so you can continue with the following steps:
 3. Open a new terminal window within the current location and execute `cd ./dev && docker-compose up`
 4. In a new terminal at the current location execute first `chmod u+x run.sh` and then `./run.sh`.
 
-Congratulations, you started the parameter server on Apache Kafka and are now training a logistic regression with one of our sample datasets. 🎉  
+Congratulations, you've just started the parameter server on Apache Kafka and are now training a logistic regression with our sample dataset. 🎉  
 
 In order to tear down the kafka setup completely please execute `cd ./dev && docker-compose down -v`.
 
@@ -78,9 +78,9 @@ Machine learning algorithms nowadays build up an integral part of products used 
 These algorithms need to be trained on a regular basis to keep them up-to-date which usually involves training on huge amounts of data on highly distributed systems.
 One of the architectures that enabled such distributed training is called parameter server.
 It evolved to be a commonly used way to perform data parallel model training.
-Big ML frameworks like TensorFlow used it for many years.
-In recent years, update-cycles of machine learning algorithms got smaller and smaller, resulting in real-time model optimization.
-We present an implementation of the parameter server on the streaming framework Apache Kafka which enables users to train their models in real-time.
+Big machine learning frameworks like MXNet are already using it for many years.
+In recent years, update-cycles of machine learning algorithms got smaller and smaller, resulting in the wish to optimize them in real-time.
+We present an implementation of the parameter server on the streaming framework Apache Kafka which enables users to update their models in real-time.
 
 ## 4 Related Work
 There are many systems out there implementing different versions of the parameter server model.
@@ -105,9 +105,10 @@ A training epoch consists of two steps that need to be executed sequentially.
 First, the current model predicts the outcome on the local training data. 
 The gradient is then calculated by using an error function that describes the difference between the prediction and the expected outcome.
 In the second step, new weights are calculated based on the previously determined gradient.
-A synchronization between the worker nodes can be achieved by combining all workers' gradients in order to calculate a weight update.
-This is the server node responsible for. It sums up all sub-gradients the workers calculated on their local data subset and determines new weight for the next training iteration on a global level.
-These new weights are then pushed to all worker so they can start their new training epoch.
+A synchronization between the worker nodes can be achieved by combining all workers' gradients in order to calculate a global weight update.
+This task is taken over by the server node. 
+It sums up all sub-gradients the workers calculated on their local data subset and determines new weights for the next training iteration on a global level.
+These new weights are then pushed to all worker so they can start their new training iteration.
 
 ### 5.2 Implementation on Apache Kafka
 In Kafka one can use partitions to distribute tasks onto different nodes. 
@@ -116,7 +117,7 @@ As a consequence all workers send calculated sub-gradients to a single server in
 whereas the server needs to send weight updates to all the different partitions.
 The general parameter server architecture also distributes the server onto different nodes, 
 but we identified this as unnecessary overhead in order to fulfill the simple logistic regression task our implementation is optimized for.
-In general, we implemented the server as well as the worker as Kafka processors, but split each worker into two separate processors (WorkerSamplingProcessor and WorkerTrainingProcessor).
+In general, we implemented the server as well as the worker as Kafka processors, but split each worker into two separate processors (_WorkerSamplingProcessor_ and _WorkerTrainingProcessor_).
 Whereas the _WorkerSamplingProcessor_ is responsible for managing the local data subsets the _WorkerTrainingProcessor_ is responsible for calculating the sub-gradients based on the data the _WorkerSamplingProcessor_ provides.
 
 ![Implementation on Kafka](docs/ParameterServerKafkaImplementationOverview.png)
@@ -132,83 +133,84 @@ The workers do not encode the data before using them for training.
 #### WorkerSamplingProcessor
 As mentioned above the _WorkerSamplingProcessor_ is one of two processors that take over the workers' tasks.
 This one subscribes to the _INPUT_DATA_TOPIC_ to receive new training data and store them in a state store called _INPUT_DATA_BUFFER_.
-The buffer then contains the training data for the next training iteration of the worker.
+The buffer contains the training data for the next training iteration of the worker.
 We had two requirements for the buffer. 
 First, it should support (theoretically) arbitrary large buffer sizes and second, it should dynamically adjust to the speed new training data comes in with as first tests indicated that the buffer size was critical to prevent under- and overfitting of the trained logistic regression model.
 In order to support those requirements the _WorkerSamplingProcessor_ reserves a key range in the _INPUT_DATA_BUFFER_ that could potentially fit the maximum allowed buffer size.
 At each of these keys we might store a single data tuple.
 The following procedure allows us to make sure the most recent training tuples are kept in the buffer while increasing, decreasing or keeping the buffer size as it is.
-Depending on the frequency new training data tuples are received we calculate a `targetBufferSize` which is a best guess of the optimal buffer size.  
+Depending on the frequency new training data tuples are received with we calculate a `targetBufferSize` which is a best guess of the optimal buffer size.  
 I. If the current buffer size is smaller than the `targetBufferSize`, we start assigning new training data tuples to yet empty keys.  
 II. If the current buffer size is equal to the `targetBufferSize`, we replace the oldest training data tuples with the newly received one.  
 III. If the current buffer size is larger than the `targetBufferSize`, we start deleting the oldest data tuples until we reach the `targetBufferSize` and similar to II replace the then oldest training data tuple with the new one.  
 
 #### WorkerTrainingProcessor
 Whereas the _WorkerSamplingProcessor_ is responsible for collecting new training data, the _WorkerTrainingProcessor_ computes gradients to submit them to the _ServerProcessor_.
-After receiving a weight update via the _WEIGHTS_TOPIC_ this processor is subscribed to it starts calculating the gradients based on the current training data in the _INPUT_DATA_BUFFER_ state store.
+After receiving a weight update via the _WEIGHTS_TOPIC_, this processor is subscribed to, it starts calculating the gradients based on the current training data in the _INPUT_DATA_BUFFER_ state store.
 In order to do so, the _WorkerTrainingProcessor_ uses a logistic regression implementation in Spark's ML library.
-After the model's local copy was trained for one iteration the gradients are extracted and send to the _ServerProcessor_ via the topic called _GRADIENT_TOPIC_.
+After the model's local copy was trained for one iteration, the gradients are extracted and sent to the _ServerProcessor_ via a topic called _GRADIENT_TOPIC_.
 The next training iteration starts as soon as the _WorkerTrainingProcessor_ receives another weight update on the topic _WEIGHTS_TOPIC_.
 
 #### ServerProcessor
 The _ServerProcessor_ takes over the role of the central coordination and synchronization unit between all the worker nodes.
-It is subscribed to the _GRADIENT_TOPIC_ and answers each of this messages asynchronously on the _WEIGHTS_TOPIC_.
+It is subscribed to the _GRADIENT_TOPIC_ and answers each of the gradient messages asynchronously with weights messages on the _WEIGHTS_TOPIC_.
 This enabled us to implement a training loop between the server and worker nodes.
 Everything starts with a message on the _WEIGHTS_TOPIC_ containing the ML model's initial weights.
-All sub-gradients that are received on the _GRADIENT_TOPIC_ topic are processed right away, but potentially answered at a later point in time based on the chosen consistency models (please see below).
-Once the consistency model tells us to combine the collected sub-gradients, the _ServerProcessor_ calculated new weights and sends them to those workers that are still waiting for a response containing updated weights.
+All sub-gradients that are received on the _GRADIENT_TOPIC_ are processed right away, but potentially answered at a later point in time based on the chosen consistency models (please see below).
+Once the consistency model tells us to combine the collected sub-gradients, the _ServerProcessor_ calculates new weights and sends them to those workers that are still waiting for a response.
 The sub-gradients are combined by simply adding them up with respect to a certain learning rate.
 
 
 ### 5.3 Consistency Models
-The Parameter Server provides three consistency models:
+The parameter server supports three consistency models:
 - Sequential Consistency
 - Eventual Consistency
 - Bounded Delay  
 
-The consistency model specifies how, and when, the different sub-gradients from the workers get combined to update the weights on the server.
+The chosen consistency model specifies how and when, the different sub-gradients from the workers get combined to update the weights on the server.
 The three models form an order of strictness: Eventual Consistency is loose, Bounded Delay is medium, and Sequential Consistency is strict.  
-In the code, the consistency model is defined by the variable `maxVectorClockDelay` (in `ServerProcessor`). 
-Use the command line parameter `--consistency_model` for the `ServerAppRunner` to specify the consistency model.
+Our application provides the parameter `--consistency_model` for the `ServerAppRunner` to choose a consistency model.
 
 #### Sequential Consistency
-The server waits until it receives all sub-gradients of a specific iteration from the workers. Then it combines the sub-gradients and updates the weights.
-Once the worker receive the updated weights, they can continue with the next iteration (in the meantime, they are idle).
-All worker are always in the same iteration.
+The server waits until it receives all sub-gradients for a specific iteration from the workers. 
+It then combines the sub-gradients and updates the weights.
+Once the workers received the updated weights, they continue with the next iteration (while being idle in the meantime).
+The workers are always processing the same iteration.
 
 This model is prone to the straggler problem.
 
-To use this model, set `--consistency_model` to `0`.
+In order to choose the sequential consistency model set `--consistency_model` to `0`.
 
 #### Eventual Consistency
-The server updates the weights as soon as it receives sub-gradients from a worker. The new weights are only pushed to the worker which caused the update.
-The other worker continue calculating with their 'old' weights until they finish their iteration. 
-Workers can be in different iterations.
+The server updates the weights as soon as it receives sub-gradients from a worker. 
+New weights are only pushed to the worker which caused the update.
+All other worker continue calculating with their 'old' weights until they finish their iteration. 
+Workers might be processing different iterations at a single point in time.
 
 This model is not prone to the straggler problem because workers do not need to wait for other workers. 
 However, some workers might be many iterations ahead of other worker, which might be undesirable.
 
-To use this model, set `--consistency_model` to `-1`.
+In order to choose the eventual consistency model set `--consistency_model` to `-1`.
 
 #### Bounded Delay
-This model is a trade-off between the previous two consistency models. Similar to the Eventual Consistency model, workers can be in different iteration.
+This model is a trade-off between the previous two consistency models.  
+Similar to the Eventual Consistency model, workers might be processing different iteration at a single point in time.
 However, The difference between the furthest and the slowest worker must never exceed the threshold of `--consistency_model`.
 If the gap between the furthest and the slowest worker gets too big, the furthest worker has to wait until the gap is lower than the threshold again.
 
 This model can be used to simulate the other two consistency models.
 
-To use this model, set `--consistency_model` to an number >0. This variable is the maximum allowed gap between the furthest and the slowest worker.
+In order to choose  this model set `--consistency_model` to an number `> 0`. 
+It describes the maximum allowed gap between the furthest and the slowest worker.
 
 
 ## 6 Evaluation
-- time
-- model performance
 
 ### The Dataset
-We use Amazon's fine food reviews dataset as the basis for the evaluation of our implementation [5].
+We use Amazon's fine food reviews dataset [5] as the basis for the evaluation of our implementation.
 During the preparation we used a hash vectorizer with 1024 features to vectorize the review texts.
 The ML task is a logistic regression where we want to predict the score the users assigned to their reviews.
-As a conclusion the dataset contains five different labels.
+As a conclusion the dataset contains five different labels (1 to 5 stars).
 In the original dataset the labels had a strong bias, as the label `5` occurred way more often than the other labels.
 We decided to remove reviews until we have a maximum of 20,000 tuples per label.
 The final result can be seen below.
@@ -239,50 +241,95 @@ Therefore, our evaluation will start with a single worker.
 | parameter         | value | description                                                               |
 |-------------------|-------|---------------------------------------------------------------------------|
 | numWorkers        | 1     | The number of workers (i.e. partitions) the application was executed with |
-| events per second | 2     | Event frequency each worker receives tuples with from the CSVProcuder      |
+| events per second | 5     | Event frequency each worker receives tuples with from the CSVProcuder      |
 
 How the loss on the training data evolved can be seen below.
-There, one can clearly see that the our application was able to optimize its parameters to fit the training data quite nicely up to the point where it received more than 1,000 tuples.
+There, one can clearly see that our application was able to optimize its parameters to fit the training data quite nicely up to the point where it received more than 1,000 tuples.
 After that the loss increases quickly.
-This is caused by a training data distribution that changes over time.
+This is likely caused by a training data distribution that changes over time.
 Moreover, we evaluated the model with an event frequency of 5 tuples per second. 
 This results in a very fast exchange of tuples in the training data buffer.
 There's not much time for the model to fit its parameters to the new data.
 ![Loss on Training Data using a Single Worker with 5 tps](docs/plots/singleWorker_5tps_loss.png)
 
 The more meaningful plot is the one shown below.
-It displays the f1 score on the training data over time.
+It displays the f1 score on the test data over time.
 As the test data does not change with the number of iteration we can compare the model performance over time here.
 By doing so we can conclude that the model constantly improves over time.
-Because the model has only seen the first ~5,000 tuples of the dataset when we stopped the evaluation we also expect the result to be a little worse than the ground truth example above where the model was capable of scanning through the training data multiple times.
+Because the model has only seen the first ~5,000 tuples of the dataset when we stopped the evaluation, we expected the result to be worse than the ground truth example above where the model was capable of scanning through the training data multiple times.
 ![F1 Score on Test Data using a Single Worker with 5 tps](docs/plots/singleWorker_5tps_f1.png)
 
 
 ### Event Frequency
 
-In order to evaluate the influence of the frequency our application received data tuples we decided to compare the event frequencies `0.5tps`, `2.5tps`, `5tps` and `10tps`.
+In order to evaluate the influence of the frequency our application received data tuples, we decided to compare the event frequencies `0.5tps`, `2.5tps`, `5tps` and `10tps`.
 
 | parameter         | value | description                                                               |
 |-------------------|-------|---------------------------------------------------------------------------|
 | numWorkers        | 4     | The number of workers (i.e. partitions) the application was executed with |
 | events per second | 0.5/ 2.5/ 5/ 10| Event frequency each worker receives tuples with from the CSVProcuder      |
 
-When we compare the F1 score of the trained model with respect to the event frequency we can clearly see a positive correlation between the events received per second and the f1 score on the test dataset.
-But compared to our first prototypes we were able to clearly minimize the influence of that parameter.
-Please see a plot comparing the f1 scores over the aggregated number of tuples seen by the workers.
+When we compare the F1 score of the trained model on the test data with respect to the event frequency we can clearly see a positive correlation between the events received per second and the f1 score on the test dataset.
+Compared to our first prototypes we were able to clearly minimize the influence of that parameter.
+Please see the following plot comparing the f1 scores over the aggregated number of tuples seen by the workers.
+(NOTE: the red line showing the f1 score of the model trained with 0.5 events/s ends at ~3,000 tuples seen, because we stopped the execution due to the already long running analysis.)
 ![Comparison of F1 Score across different Event Frequencies](docs/plots/worker-comparison_event-frequency_f1.png)
 
-We explain the influence of the event frequency on the model's performance with the danger of overfitting on the training dataset when tuples the model trains on are exchanged too slowly in the `INPUT_DATA_BUFFER`.
+We can explain the influence of the event frequency on the model's performance with the danger of overfitting on the training dataset when tuples the model trains on are exchanged too slowly in the `INPUT_DATA_BUFFER`.
 This gets clear when looking at the plots below.
-The higher the event frequency the higher the losses on the training data which is an effect of the fact that the model is not able to completely fit its parameters on the training data.
+The higher the event frequency the higher the losses on the training data which is an effect of the fact that the model is not able to completely fit its parameters to the training data as they slide through the data buffer.
 ![Comparison of Loss across different Event Frequencies](docs/plots/worker-comparison_event-frequency_loss.png)
 
 
-
 ### Consistency Models
+In order to evaluate the impact of the different consistency models, we compared all three consistency models with each other.
+For 'Bounded Delay', we set the maximum allowed difference to `10`.
+
+| parameter         | value |
+|-------------------|-------|
+| `--consistency_model` | `0` (sequential) / `10` (bounded delay) / `-1` (eventual)|
+
+The plot below shows that the different consistency models have little effect on the f1 score. Regardless of the type of the consistency model, all lines have the same peaks and valleys.  
+(Note: keep in mind that this experiment is performed locally)
+
+
+![Comparison of F1 Score across different consisteny models](docs/plots/consistency_models_f1.png)
+
+The next three plots show in which iteration each partition is, with respect to the number of processed tuples.  
+Every dot indicates the point in time where the next iteration was started on a specific partition.  
+(Note: Sometimes one dot shadows another dot. This is the case if two partition start with the same iteration at the same time. For example, in the plot of the sequential model in iteration 2.)
+
+- Sequential consistency model
+
+  The behaviour of the consistency model is captured nicely in this plot:   
+  The next iteration can only be started if the previous iteration is finished on all partitions. For that reason, the intervals in which each iteration is processed are not overlapping.
+
+  ![Plot of the iteration in respect to processed tuples for the sequential model](docs/plots/consistency_model_sequential.png)
+
+- Bounded Delay consistency model
+
+  The plot for the Bounded Delay look similar. However, the intervals in which each iteration is processed start to overlap. This is allowed in this case, as long as the gap between the fastest and the slowest worker does not get too big.
+
+  ![Plot of the iteration in respect to processed tuples for the bounded delay model](docs/plots/consistency_model_bounded_delay.png)
+
+- Eventual consistency model
+
+  This plot differs a lot from the previous plots. In the Eventual consistency model, workers do not have to wait on each other. This plot starts much later in time. Therefore, the differences are much more obvious.
+  The difference between the fastest and the slowest iteration is about 20.
+
+  ![Plot of the iteration in respect to processed tuples for the eventual model](docs/plots/consistency_model_eventual.png)
+
+It is interesting to see that the performance of the different models is very similar, even though the gap between the fastest and slowest iteration differs a lot between the models.
+
+It is to be expected that the consistency models make an bigger impact if the application is run on a heterogeneous cluster, due to the difference in computation power and network communication.
 
 
 ## 7 Conclusion & Future Work
+We represented an implementation of the well-known parameter server approach that is used to scale distributed machine learning tasks.
+For this research prototype the general architecture was simplified and adopted to KafkaStreams.
+Furthermore, we evaluated the implementation's robustness and its configuration parameters.
+
+Future work might include a compression of the transmitted messages as well as an distribution of the server's tasks onto multiple nodes as the classical parameter server approach proposes [1].
 
 ## References
 [1] Li, Mu, et al. "Scaling distributed machine learning with the parameter server." 11th USENIX Symposium on Operating Systems Design and Implementation (OSDI 14). 2014.

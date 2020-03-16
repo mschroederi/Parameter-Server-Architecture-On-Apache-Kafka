@@ -71,10 +71,14 @@ public class CsvProducer {
             rowCount++;
 
             if (rowCount >= numWorkers * 128) {
-                try {
-                    Thread.sleep(this.waitTimePerEvent);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
+
+                int numTuplesPerSecond = 1000 / this.waitTimePerEvent;
+                if (rowCount % numTuplesPerSecond == 0) {
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
                 }
             }
         }
