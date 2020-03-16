@@ -290,7 +290,7 @@ For 'Bounded Delay', we set the maximum allowed difference to `10`.
 |-------------------|-------|
 | `--consistency_model` | `0` (sequential) / `10` (bounded delay) / `-1` (eventual)|
 
-The plot below shows that the different consistency models have little effect on the f1 score. Regardless of the type of the consistency model, all lines have the same peaks and valleys.  
+The plot below shows that the different consistency models have little effect on the f1 score. Regardless of the type of the consistency model, all lines have the same peaks and valleys. But we can also see that the sequential consistency model has got the lowest volatility in its f1 score, whereas the eventual consistency model has got the highest one. The bounded delay model lays somewhere in between.
 (Note: keep in mind that this experiment is performed locally)
 
 
